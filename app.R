@@ -5,6 +5,7 @@ source("alpha_pra.R")
 source("alpha_minmax.R")
 source("alpha_exuber.R")
 source("alpha_exuber_old.R")
+source("alpha_riskcombo.R")
 
 
 ui = bslib::page_navbar(
@@ -32,6 +33,7 @@ ui = bslib::page_navbar(
   )),
   bslib::nav_panel("MinMax", module_strategy_ui("minmax", alpha_ui_minmax)),
   bslib::nav_panel("PRA", module_strategy_ui("pra", alpha_ui_pra)),
+  bslib::nav_panel("RiskCombo", module_strategy_ui("riskcombo", alpha_ui_riskcombo)), # alpha_ui_riskcombo
   bslib::nav_panel("Exuber", module_strategy_ui("exuber", alpha_ui_exuber)),
   bslib::nav_panel("Exuber old", module_strategy_ui("exuber_old", alpha_ui_exuber_old)),
   bslib::nav_panel("Exuber total", module_strategy_ui("exuber_total")),
@@ -57,6 +59,13 @@ server = function(input, output) {
     start_date = minmax_start,
     end_date = NULL,
     alpha = alpha_server_minmax
+  )
+  o_riskcombo = module_strategy_server(
+    "riskcombo",
+    FLEX_RISKCOMBO,
+    start_date = riskcombo_start,
+    end_date = NULL,
+    alpha = alpha_server_riskcombo # alpha_server_riskcombo
   )
   o_exuber = module_strategy_server(
     "exuber",
@@ -88,7 +97,11 @@ server = function(input, output) {
   )
   output$dt_shared_returns = DT::renderDT({
     leverage_ = if (isTRUE(input$leverage)) NULL else 2
-    dates = c(o_pra()$date, o_minmax()$date, o_exuber()$date, o_lv()$date) # , as.Date("2020-01-01")
+    dates = c(o_pra()$date,
+              o_minmax()$date,
+              o_riskcombo()$date,
+              o_exuber()$date,
+              o_lv()$date) # , as.Date("2020-01-01")
     # print(head(Return.calculate(as.xts.data.table(o_pra()$nav_units[, .(date, Strategy, Benchmark)]))))
 
     # strategy()$calculate_nav_units(
@@ -101,6 +114,7 @@ server = function(input, output) {
     dt_ = cbind(
       get_portfolio_stats_from_strategy(o_pra()$strategy, o_pra()$date, leverage_),
       get_portfolio_stats_from_strategy(o_minmax()$strategy, o_minmax()$date, leverage_),
+      get_portfolio_stats_from_strategy(o_riskcombo()$strategy, o_riskcombo()$date, leverage_),
       get_portfolio_stats_from_strategy(o_exuber()$strategy, o_exuber()$date, leverage_),
       get_portfolio_stats(rbi_lv)
     )
@@ -112,13 +126,15 @@ server = function(input, output) {
       formatStyle(columns = 2:3, backgroundColor = "#f0f8ff") |>
       formatStyle(columns = 4:5, backgroundColor = "#f0fff0") |>
       formatStyle(columns = 6:7, backgroundColor = "#ffe4e1") |>
-      formatStyle(columns = 8:9, backgroundColor = "#f0f8ff")
+      formatStyle(columns = 8:9, backgroundColor = "#f0f8ff") |>
+      formatStyle(columns = 10:11, backgroundColor = "#f0fff0")
   })
 
   output$ui_strategies_in_positions <- renderUI({
     # Check each module's `portfolio_has_asset`
     has_pra    = o_pra()$portfolio_has_asset
     has_minmax = o_minmax()$portfolio_has_asset
+    has_riskcombo = o_riskcombo()$portfolio_has_asset
     has_exuber = o_exuber()$portfolio_has_asset
     has_exuber_old <- portfolio_stats_exuber_old()$portfolio_has_asset
     has_exuber_total <- portfolio_stats_exuber_total()$portfolio_has_asset
@@ -131,7 +147,8 @@ server = function(input, output) {
       "PRA"          = has_pra,
       "MinMax"       = has_minmax,
       "Exuber"       = has_exuber,
-      "Least Vol"    = has_lv
+      "Least Vol"    = has_lv,
+      "RiskComobo"   = has_riskcombo
     )
 
     tagList(

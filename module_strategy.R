@@ -127,17 +127,17 @@ module_strategy_ui <- function(id, alpha = NULL) {
 module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
                                   alpha = NULL) {
   # Debug
-  # xml_paths = FLEX_MINMAX
+  # xml_paths = FLEX_RISKCOMBO
   # start_date = minmax_start
   # end_date = NULL
   # strategy = Strategy$new(lapply(xml_paths, read_xml), start_date, end_date)
   # strategy$start_date
   # strategy$end_date
+  # nav_units = strategy$calculate_nav_units("SPY", unit = NULL)
   # cfd_charge = strategy$extract_node("CFDCharge")
   # equity_summary_by_report_date_in_base = strategy$extract_node("EquitySummaryByReportDateInBase")
   # equity_summary_by_report_date_in_base[, format(last(total), big.mark = ",", scientific = FALSE)]
   # strategy$calculate_nav_units("SPY", unit = 2)
-  # nav_units = strategy$calculate_nav_units("SPY", unit = NULL)
   # r = as.xts.data.table(nav_units[, .(date, Strategy, Benchmark)])
   # returns = na.omit(Return.calculate(r))
   # paste0(round(Return.annualized(returns)[1,1] * 100, 2), "%")

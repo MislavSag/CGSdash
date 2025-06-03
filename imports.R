@@ -16,9 +16,6 @@ library(waiter)
 library(bslib)
 library(httr)
 
-library(PMwR)
-library(yahoofinancer)
-
 
 # SET UP ------------------------------------------------------------------
 # Connect to database
@@ -184,6 +181,14 @@ indicators_exuber = dcast(indicators_exuber, timestamp ~ variable, value.var = "
 setnames(indicators_exuber, "timestamp", "time")
 
 
+# RISK COMBO INDICATORS ---------------------------------------------------
+# risk combo indicators
+indicators_risk_combo = dbReadTable(connec, "indicators_riskcombo")
+indicators_risk_combo = as.data.table(indicators_risk_combo)
+indicators_risk_combo = dcast(indicators_risk_combo, timestamp ~ variable, value.var = "value")
+setnames(indicators_risk_combo, "timestamp", "time")
+
+
 # CLOSE CONNECTION --------------------------------------------------------
 # close connection
 dbDisconnect(connec)
@@ -217,6 +222,9 @@ FLEX_EXUBER = c(
   "https://snpmarketdata.blob.core.windows.net/flex/exuber_2024.xml",
   "https://snpmarketdata.blob.core.windows.net/flex/exuberv1.xml"
 )
+FLEX_RISKCOMBO = c(
+  "https://snpmarketdata.blob.core.windows.net/flex/riskcombo.xml"
+)
 
 # strategies start
 # Old - my way - first indicator apparance
@@ -231,6 +239,7 @@ pra_start = as.Date("2023-03-22")
 exuber_start = as.Date("2024-05-01")
 exuber_old_start = indicators_exuber[, min(as.Date(time))]
 exuber_start_total = as.Date("2023-02-14")
+riskcombo_start = as.Date("2025-05-21")
 least_volatile_start = rbi_lv[, min(as.Date(date))]
 
 
@@ -286,6 +295,7 @@ dt_portfolio = function(df, filename = "df", dates = NULL) {
           th('Portfolio Statistics'),
           th('Strategy PRA'),    th('Benchmark'),
           th('Strategy MinMAx'), th('Benchmark'),
+          th('Strategy Risk Combo'), th('Benchmark'),
           th('Strategy Exuber'), th('Benchmark'),
           th('Strategy LV'), th('Benchmark')
           # ADD HERE
@@ -309,14 +319,14 @@ dt_portfolio = function(df, filename = "df", dates = NULL) {
               ),
               rowCallback = JS(
                 "function(row, data, displayNum, index) {",
-                "  if (index < 2 || index === 6) {", # CHANGE HERE
+                "  if (index < 2 || index === 6 || index == 7) {", # CHANGE HERE IF NEW ROWS ADDED
                 "  for (var i = 1; i <= data.length; i++) {",
                 "      var num = (parseFloat(data[i]) * 100).toFixed(2) + '%';",
                 "      $('td:eq(' + i + ')', row).html(num);",
                 "  }",
                 "  }",
                 "",
-                "  var targetIndecies = [2, 3, 4, 5, 8];", # CHANGE HERE
+                "  var targetIndecies = [2, 3, 4, 5, 8, 9, 10];", # CHANGE HERE COLUMNS ADDED
                 "  if (targetIndecies.includes(index)) {",
                 "    for (var i = 1; i < data.length; i++) {",
                 "      var num = parseFloat(data[i]).toFixed(2);",
