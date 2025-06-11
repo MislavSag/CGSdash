@@ -8,7 +8,7 @@ Since, flex report can be created only for the last 365 calendar days,
 make sure you create multiple files if date range for the strategy (sub account) is greater than 365 days. 
 I create flex report for each year. For current year, I recreate flex report every day.
 
-2. Add lex report genration on server in project Quantdata in file script_flex.R.
+2. Add flex report generation on server in project Quantdata in file script_flex.R.
 
 3. Add indicators for new strategy from DO.
 
@@ -118,12 +118,12 @@ and here
       "MinMax"       = has_minmax,
       "Exuber"       = has_exuber,
       "Least Vol"    = has_lv,
-      "RiskComobo"   = has_riskcombo
+      "RiskCombo"   = has_riskcombo
     )
 
 ```
 
-10. Optionally, add alpha navtab panel to the app to explain alpha in detail. Steps to add slpha navtab panel to specific strategy are:
+10. Optionally, add alpha navtab panel to the app to explain alpha in detail. Steps to add alpha navtab panel to specific strategy are:
 
 - Crete new R script with name alpha_{strteagy name}.R
 - Copy paste content from alpha_pra.R file.
