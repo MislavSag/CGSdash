@@ -5,7 +5,7 @@ account: forensis
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 12248018
-bundleId: 10389607
+bundleId: 10786013
 url: https://forensis.shinyapps.io/CGSdelta/
 version: 1
 asMultiple: FALSE

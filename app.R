@@ -108,8 +108,10 @@ server = function(input, output) {
     dates = c(o_pra()$date,
               o_minmax()$date,
               o_riskcombo()$date,
+              o_alphapicks()$date,
               o_exuber()$date,
-              o_lv()$date) # , as.Date("2020-01-01")
+              o_lv()$date
+              ) # , as.Date("2020-01-01")
     # print(head(Return.calculate(as.xts.data.table(o_pra()$nav_units[, .(date, Strategy, Benchmark)]))))
 
     # strategy()$calculate_nav_units(
@@ -142,25 +144,25 @@ server = function(input, output) {
 
   output$ui_strategies_in_positions <- renderUI({
     # Check each module's `portfolio_has_asset`
-    has_pra    = o_pra()$portfolio_has_asset
-    has_minmax = o_minmax()$portfolio_has_asset
-    has_riskcombo = o_riskcombo()$portfolio_has_asset
+    has_pra        = o_pra()$portfolio_has_asset
+    has_minmax     = o_minmax()$portfolio_has_asset
+    has_riskcombo  = o_riskcombo()$portfolio_has_asset
     has_alphapicks = o_alphapicks()$portfolio_has_asset
-    has_exuber = o_exuber()$portfolio_has_asset
-    has_exuber_old <- portfolio_stats_exuber_old()$portfolio_has_asset
+    has_exuber     = o_exuber()$portfolio_has_asset
+    has_exuber_old = portfolio_stats_exuber_old()$portfolio_has_asset
     has_exuber_total <- portfolio_stats_exuber_total()$portfolio_has_asset
-    has_lv      <- o_lv()$portfolio_has_asset
+    has_lv         = o_lv()$portfolio_has_asset
 
     # Build a small info string
     # For example, you can keep a named vector of bools:
     # Named logical vector
     strategy_status <- c(
-      "PRA"          = has_pra,
-      "MinMax"       = has_minmax,
-      "Exuber"       = has_exuber,
-      "Least Vol"    = has_lv,
-      "RiskCombo"   = has_riskcombo,
-      "AlphaPicks"   = has_alphapicks
+      "PRA"        = has_pra,
+      "MinMax"     = has_minmax,
+      "Exuber"     = has_exuber,
+      "Least Vol"  = has_lv,
+      "RiskCombo"  = has_riskcombo,
+      "AlphaPicks" = has_alphapicks
     )
 
     tagList(
