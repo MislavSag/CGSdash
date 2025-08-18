@@ -189,6 +189,14 @@ indicators_risk_combo = dcast(indicators_risk_combo, timestamp ~ variable, value
 setnames(indicators_risk_combo, "timestamp", "time")
 
 
+# ALPHA PICKS INDICATORS ---------------------------------------------------
+# alpha picks indicators
+indicators_alphapicks = dbReadTable(connec, "indicators_alphapicks")
+indicators_alphapicks = as.data.table(indicators_alphapicks)
+indicators_alphapicks = dcast(indicators_alphapicks, timestamp ~ variable, value.var = "value")
+setnames(indicators_alphapicks, "timestamp", "time")
+
+
 # CLOSE CONNECTION --------------------------------------------------------
 # close connection
 dbDisconnect(connec)
@@ -225,6 +233,9 @@ FLEX_EXUBER = c(
 FLEX_RISKCOMBO = c(
   "https://snpmarketdata.blob.core.windows.net/flex/riskcombo.xml"
 )
+FLEX_ALPHAPICKS = c(
+  "https://snpmarketdata.blob.core.windows.net/flex/alphapicks.xml"
+)
 
 # strategies start
 # Old - my way - first indicator apparance
@@ -239,7 +250,8 @@ pra_start = as.Date("2023-03-22")
 exuber_start = as.Date("2024-05-01")
 exuber_old_start = indicators_exuber[, min(as.Date(time))]
 exuber_start_total = as.Date("2023-02-14")
-riskcombo_start = as.Date("2025-05-21")
+riskcombo_start = as.Date("2025-05-18")
+alphapicks_start = as.Date("2025-04-16")
 least_volatile_start = rbi_lv[, min(as.Date(date))]
 
 
@@ -296,6 +308,7 @@ dt_portfolio = function(df, filename = "df", dates = NULL) {
           th('Strategy PRA'),    th('Benchmark'),
           th('Strategy MinMAx'), th('Benchmark'),
           th('Strategy Risk Combo'), th('Benchmark'),
+          th('Strategy Alpha Picks'), th('Benchmark'),
           th('Strategy Exuber'), th('Benchmark'),
           th('Strategy LV'), th('Benchmark')
           # ADD HERE
