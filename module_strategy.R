@@ -1,4 +1,4 @@
-module_strategy_ui <- function(id, alpha = NULL) {
+module_strategy_ui <- function(id, alpha = NULL, description = NULL) {
   ns = NS(id)
   tagList(
     bslib::navset_tab(
@@ -109,6 +109,19 @@ module_strategy_ui <- function(id, alpha = NULL) {
                          downloadButton(ns("download_prior_period_position"), "Prior period position")
                        )
       ),
+      if (!is.null(description)) {
+        bslib::nav_panel(title = "Description",
+                         card(
+                           tags$iframe(
+                             src = description,
+                             width = "100%",
+                             height = "800px",
+                             frameborder = "0",
+                             scrolling = "auto"
+                           )
+                         )
+        )
+      },
       bslib::nav_spacer(),
       # add downloadabe html report
       bslib::nav_item(
@@ -125,7 +138,7 @@ module_strategy_ui <- function(id, alpha = NULL) {
 }
 
 module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
-                                  alpha = NULL) {
+                                  alpha = NULL, description = NULL) {
   # Debug
   # xml_paths = FLEX_RISKCOMBO
   # start_date = minmax_start
@@ -203,7 +216,7 @@ module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
         # nav_units_ = strategy$calculate_nav_units("SPY", unit = NULL)
         nav_units_ = strategy()$calculate_nav_units("SPY", unit = NULL)
       } else {
-        nav_units_ = strategy()$calculate_nav_units("SPY", unit = 2)
+        nav_units_ = strategy()$calculate_nav_units("SPY", unit = 2.66)
       }
       print(nav_units_)
       nav_units_
@@ -275,7 +288,7 @@ module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
       print("UPDATE!!!!!!!!!!!!!!!!!!!!!!!")
       strategy()$calculate_nav_units(
         "SPY",
-        unit = if (input$leverage == TRUE) NULL else 2,
+        unit = if (input$leverage == TRUE) NULL else 2.66,
         start_date = input$date_range[1],
         end_date = input$date_range[2]
       )

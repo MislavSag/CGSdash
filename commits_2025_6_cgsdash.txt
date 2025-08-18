@@ -1,0 +1,2353 @@
+fa45eb496d940adb3a172ee43598a4b29df96def MislavSag Tue Jun 3 09:28:07 2025 +0200 final versin
+diff --git a/README.md b/README.md
+index 90f7780..165d331 100644
+--- a/README.md
++++ b/README.md
+@@ -2,8 +2,17 @@
+ 
+ Steps to add new strategy to the app:
+ 
+-1. Create Flex report template in Interactive Brokers Client Portal. Include all possible data in the flex report. Since, flex report can be created only for the last 365 calendar days, make sure you create multiple files if date range for the strategy (sub account) is greater than 365 days. I create flex report for each year. For current year, I recreate flex report every day.
+-2. In the imports.R file set urls where above xml documents (flex reports) can be downloaded. Example for one strategy:
++1. Create Flex report template in Interactive Brokers Client Portal. 
++Include all possible data in the flex report. 
++Since, flex report can be created only for the last 365 calendar days, 
++make sure you create multiple files if date range for the strategy (sub account) is greater than 365 days. 
++I create flex report for each year. For current year, I recreate flex report every day.
++
++2. Add lex report genration on server in project Quantdata in file script_flex.R.
++
++3. Add indicators for new strategy from DO.
++
++4. In the imports.R file set urls where above xml documents (flex reports) can be downloaded. Example for one strategy:
+ ```
+ FLEX_MINMAX = c(
+   "https://snpmarketdata.blob.core.windows.net/flex/minmax_2022.xml",
+@@ -11,7 +20,7 @@ FLEX_MINMAX = c(
+   "https://snpmarketdata.blob.core.windows.net/flex/minmax.xml"
+ )
+ ```
+-3. Define start date in imports.R file after the above code. Example:
++5. Define start date in imports.R file after the above code. Example:
+ ```
+ # strategies start
+ minmax_start = indicators_minmax[, min(as.Date(time))]
+@@ -19,13 +28,13 @@ pra_start = indicators_pra[, min(as.Date(time))]
+ exuber_start = as.Date("2024-05-01")
+ exuber_old_start = as.Date("2024-01-02")
+ ```
+-4. Add new strategy to the app.R file. Example:
++6. Add new strategy to the app.R file. Example:
+ ```
+ nav_panel("MinMax", module_strategy_ui("minmax", alpha_ui_minmax)),
+ nav_panel("PRA", module_strategy_ui("pra", alpha_ui_pra)),
+ nav_panel("Exuber", module_strategy_ui("exuber", alpha_ui_exuber)),
+ ```
+-5. Add new strategy to the app.R server. Example:
++7. Add new strategy to the app.R server. Example:
+ ```
+   portfolio_stats_pra = module_strategy_server(
+     "pra",
+@@ -35,13 +44,94 @@ nav_panel("Exuber", module_strategy_ui("exuber", alpha_ui_exuber)),
+     alpha = alpha_server_pra
+ ```
+ 
+-6. Optionally, add alpha navtab panel to the app to explain alpha in detail. Steps to add slpha navtab panel to specific strategy are:
++8. Add strategy to the home page table, os it can be quickly compares to benchmark and other strategies.
++First add date here
++
++```
++    dates = c(o_pra()$date,
++              o_minmax()$date,
++              o_riskcombo()$date,
++              o_exuber()$date,
++              o_lv()$date) # , as.Date("2020-01-01")
++```
++than add portfolio stats here
++```
++    dt_ = cbind(
++      get_portfolio_stats_from_strategy(o_pra()$strategy, o_pra()$date, leverage_),
++      get_portfolio_stats_from_strategy(o_minmax()$strategy, o_minmax()$date, leverage_),
++      get_portfolio_stats_from_strategy(o_riskcombo()$strategy, o_riskcombo()$date, leverage_),
++      get_portfolio_stats_from_strategy(o_exuber()$strategy, o_exuber()$date, leverage_),
++      get_portfolio_stats(rbi_lv)
++    )
++```
++Also add new line here
++    dt_portfolio(dt_, "strategy_performance", dates) |>
++      formatStyle(columns = 2:3, backgroundColor = "#f0f8ff") |>
++      formatStyle(columns = 4:5, backgroundColor = "#f0fff0") |>
++      formatStyle(columns = 6:7, backgroundColor = "#ffe4e1") |>
++      formatStyle(columns = 8:9, backgroundColor = "#f0f8ff") |>
++      formatStyle(columns = 10:11, backgroundColor = "#f0fff0")
++
++Finally, to make this table work you should also change dt_portfolio function in imports.R file. 
++there are notes what to change. You should add here
++
++```
++        tr(
++          th('Portfolio Statistics'),
++          th('Strategy PRA'),    th('Benchmark'),
++          th('Strategy MinMAx'), th('Benchmark'),
++          th('Strategy Exuber'), th('Benchmark'),
++          th('Strategy LV'), th('Benchmark'),
++          th('Strategy Risk Combo'), th('Benchmark')
++          # ADD HERE
++        )
++```
++and here
++```
++              "  var targetIndecies = [2, 3, 4, 5, 8, 9, 10];", # CHANGE HERE
++                "  if (targetIndecies.includes(index)) {",
++                "    for (var i = 1; i < data.length; i++) {",
++                "      var num = parseFloat(data[i]).toFixed(2);",
++                "      $('td:eq(' + i + ')', row).html(num);",
++                "    }",
++                "  }",
++                "}"
++```
++
++9. Optionally, add position status of the strategy. by changin those two parts in app.R:
++
++```
++    # Check each module's `portfolio_has_asset`
++    has_pra    = o_pra()$portfolio_has_asset
++    has_minmax = o_minmax()$portfolio_has_asset
++    has_riskcombo = o_riskcombo()$portfolio_has_asset
++    has_exuber = o_exuber()$portfolio_has_asset
++    has_exuber_old <- portfolio_stats_exuber_old()$portfolio_has_asset
++    has_exuber_total <- portfolio_stats_exuber_total()$portfolio_has_asset
++    has_lv      <- o_lv()$portfolio_has_asset
++
++    # Build a small info string
++    # For example, you can keep a named vector of bools:
++    # Named logical vector
++    strategy_status <- c(
++      "PRA"          = has_pra,
++      "MinMax"       = has_minmax,
++      "Exuber"       = has_exuber,
++      "Least Vol"    = has_lv,
++      "RiskComobo"   = has_riskcombo
++    )
++
++```
++
++10. Optionally, add alpha navtab panel to the app to explain alpha in detail. Steps to add slpha navtab panel to specific strategy are:
+ 
+ - Crete new R script with name alpha_{strteagy name}.R
+ - Copy paste content from alpha_pra.R file.
+ - Change all pra words with new strategy name (say exuber).
+ - make all necessary changes.
+ - source alpha_{strtegy name}.R file in app.R
+-- make sure you have added new alpha in app.R ui like this `nav_panel("MinMax", module_strategy_ui("minmax", alpha_ui_minmax)),` and in the app.R server like this `module_strategy_server("minmax", alpha_server_minmax)`.
++- make sure you have added new alpha in app.R ui like this 
++`nav_panel("MinMax", module_strategy_ui("minmax", alpha_ui_minmax)),` 
++and in the app.R server like this `module_strategy_server("minmax", alpha_server_minmax)`.
+ 
+ 
+diff --git a/alpha_minmax.R b/alpha_minmax.R
+index 0f6bce3..63d4f1a 100644
+--- a/alpha_minmax.R
++++ b/alpha_minmax.R
+@@ -1,7 +1,7 @@
+ # source("imports.R")
+ 
+ # Trades summary
+-strategy_minmax = Strategy$new(lapply(FLEX_MINMAX, read_xml), pra_start)
++strategy_minmax = Strategy$new(lapply(FLEX_MINMAX, read_xml), minmax_start)
+ trades_dt_minmax_summary = strategy_minmax$summary_cfd_trades()
+ 
+ # UI
+diff --git a/alpha_riskcombo.R b/alpha_riskcombo.R
+new file mode 100644
+index 0000000..994cf6a
+--- /dev/null
++++ b/alpha_riskcombo.R
+@@ -0,0 +1,53 @@
++# source("imports.R")
++
++# Trades summary
++strategy_riskcombo = Strategy$new(lapply(FLEX_RISKCOMBO, read_xml), riskcombo_start)
++trades_dt_riskcombo_summary = strategy_riskcombo$summary_cfd_trades()
++
++# UI
++alpha_ui_riskcombo = function(ns) {
++  tagList(
++    card(
++      card_header("riskcombo indicators graph"),
++      max_height = "1000px",
++      layout_column_wrap(
++        layout_sidebar(
++          sidebar = sidebar(
++            selectInput(ns("select_tz_riskcombo"), label = h5("Select Timezone"),
++                        choices = list("NY" = 1, "UTC" = 2, "Local" = 3),
++                        selected = 1),
++          ),
++          # dygraphOutput(ns("indicators_riskcombo_graph")),
++          br(),
++          dataTableOutput(ns("indicators_riskcombo_table"))
++        ),
++      )
++
++    )
++  )
++}
++
++# Server
++alpha_server_riskcombo = function(input, output, session, strategy) {
++
++  output$indicators_riskcombo_table = renderDataTable({
++    indicators_riskcombo_ = copy(indicators_risk_combo)
++    setnames(indicators_riskcombo_, "time", "time_UTC")
++    myDT(indicators_riskcombo_, paste0("indicators_riskcombo_", "-", Sys.Date()))
++  }, server = FALSE)
++
++  # output$indicators_riskcombo_graph <- renderDygraph({
++  #   ind_trades = merge_indicators_trades(
++  #     indicators_riskcombo[, .(time, riskcombo_indicator)],
++  #     trades_dt_riskcombo_summary,
++  #     "riskcombo_indicator"
++  #   )
++  #   ind_trades = ind_trades[, .(time_indicator, riskcombo_indicator, buy, sell)]
++  #   ind_trades[, threshold := 5]
++  #   dg = dygraph(as.xts.data.table(ind_trades), main = "riskcombo indicator") %>%
++  #     # dyLimit(limit = 5, color = "red") %>%
++  #     dySeries("buy", pointSize = 6, pointShape = "dot", color = "green") %>%
++  #     dySeries("sell", pointSize = 6, pointShape = "dot", color = "red")
++  #   set_timezone(dg, input = input$select_tz_riskcombo)
++  # })
++}
+diff --git a/app.R b/app.R
+index eb19cd9..2f57a8d 100644
+--- a/app.R
++++ b/app.R
+@@ -5,6 +5,7 @@ source("alpha_pra.R")
+ source("alpha_minmax.R")
+ source("alpha_exuber.R")
+ source("alpha_exuber_old.R")
++source("alpha_riskcombo.R")
+ 
+ 
+ ui = bslib::page_navbar(
+@@ -32,6 +33,7 @@ ui = bslib::page_navbar(
+   )),
+   bslib::nav_panel("MinMax", module_strategy_ui("minmax", alpha_ui_minmax)),
+   bslib::nav_panel("PRA", module_strategy_ui("pra", alpha_ui_pra)),
++  bslib::nav_panel("RiskCombo", module_strategy_ui("riskcombo", alpha_ui_riskcombo)), # alpha_ui_riskcombo
+   bslib::nav_panel("Exuber", module_strategy_ui("exuber", alpha_ui_exuber)),
+   bslib::nav_panel("Exuber old", module_strategy_ui("exuber_old", alpha_ui_exuber_old)),
+   bslib::nav_panel("Exuber total", module_strategy_ui("exuber_total")),
+@@ -58,6 +60,13 @@ server = function(input, output) {
+     end_date = NULL,
+     alpha = alpha_server_minmax
+   )
++  o_riskcombo = module_strategy_server(
++    "riskcombo",
++    FLEX_RISKCOMBO,
++    start_date = riskcombo_start,
++    end_date = NULL,
++    alpha = alpha_server_riskcombo # alpha_server_riskcombo
++  )
+   o_exuber = module_strategy_server(
+     "exuber",
+     FLEX_EXUBER,
+@@ -88,7 +97,11 @@ server = function(input, output) {
+   )
+   output$dt_shared_returns = DT::renderDT({
+     leverage_ = if (isTRUE(input$leverage)) NULL else 2
+-    dates = c(o_pra()$date, o_minmax()$date, o_exuber()$date, o_lv()$date) # , as.Date("2020-01-01")
++    dates = c(o_pra()$date,
++              o_minmax()$date,
++              o_riskcombo()$date,
++              o_exuber()$date,
++              o_lv()$date) # , as.Date("2020-01-01")
+     # print(head(Return.calculate(as.xts.data.table(o_pra()$nav_units[, .(date, Strategy, Benchmark)]))))
+ 
+     # strategy()$calculate_nav_units(
+@@ -101,6 +114,7 @@ server = function(input, output) {
+     dt_ = cbind(
+       get_portfolio_stats_from_strategy(o_pra()$strategy, o_pra()$date, leverage_),
+       get_portfolio_stats_from_strategy(o_minmax()$strategy, o_minmax()$date, leverage_),
++      get_portfolio_stats_from_strategy(o_riskcombo()$strategy, o_riskcombo()$date, leverage_),
+       get_portfolio_stats_from_strategy(o_exuber()$strategy, o_exuber()$date, leverage_),
+       get_portfolio_stats(rbi_lv)
+     )
+@@ -112,13 +126,15 @@ server = function(input, output) {
+       formatStyle(columns = 2:3, backgroundColor = "#f0f8ff") |>
+       formatStyle(columns = 4:5, backgroundColor = "#f0fff0") |>
+       formatStyle(columns = 6:7, backgroundColor = "#ffe4e1") |>
+-      formatStyle(columns = 8:9, backgroundColor = "#f0f8ff")
++      formatStyle(columns = 8:9, backgroundColor = "#f0f8ff") |>
++      formatStyle(columns = 10:11, backgroundColor = "#f0fff0")
+   })
+ 
+   output$ui_strategies_in_positions <- renderUI({
+     # Check each module's `portfolio_has_asset`
+     has_pra    = o_pra()$portfolio_has_asset
+     has_minmax = o_minmax()$portfolio_has_asset
++    has_riskcombo = o_riskcombo()$portfolio_has_asset
+     has_exuber = o_exuber()$portfolio_has_asset
+     has_exuber_old <- portfolio_stats_exuber_old()$portfolio_has_asset
+     has_exuber_total <- portfolio_stats_exuber_total()$portfolio_has_asset
+@@ -131,7 +147,8 @@ server = function(input, output) {
+       "PRA"          = has_pra,
+       "MinMax"       = has_minmax,
+       "Exuber"       = has_exuber,
+-      "Least Vol"    = has_lv
++      "Least Vol"    = has_lv,
++      "RiskComobo"   = has_riskcombo
+     )
+ 
+     tagList(
+diff --git a/imports.R b/imports.R
+index 6c79691..e027cc0 100644
+--- a/imports.R
++++ b/imports.R
+@@ -16,9 +16,6 @@ library(waiter)
+ library(bslib)
+ library(httr)
+ 
+-library(PMwR)
+-library(yahoofinancer)
+-
+ 
+ # SET UP ------------------------------------------------------------------
+ # Connect to database
+@@ -184,6 +181,14 @@ indicators_exuber = dcast(indicators_exuber, timestamp ~ variable, value.var = "
+ setnames(indicators_exuber, "timestamp", "time")
+ 
+ 
++# RISK COMBO INDICATORS ---------------------------------------------------
++# risk combo indicators
++indicators_risk_combo = dbReadTable(connec, "indicators_riskcombo")
++indicators_risk_combo = as.data.table(indicators_risk_combo)
++indicators_risk_combo = dcast(indicators_risk_combo, timestamp ~ variable, value.var = "value")
++setnames(indicators_risk_combo, "timestamp", "time")
++
++
+ # CLOSE CONNECTION --------------------------------------------------------
+ # close connection
+ dbDisconnect(connec)
+@@ -217,6 +222,9 @@ FLEX_EXUBER = c(
+   "https://snpmarketdata.blob.core.windows.net/flex/exuber_2024.xml",
+   "https://snpmarketdata.blob.core.windows.net/flex/exuberv1.xml"
+ )
++FLEX_RISKCOMBO = c(
++  "https://snpmarketdata.blob.core.windows.net/flex/riskcombo.xml"
++)
+ 
+ # strategies start
+ # Old - my way - first indicator apparance
+@@ -231,6 +239,7 @@ pra_start = as.Date("2023-03-22")
+ exuber_start = as.Date("2024-05-01")
+ exuber_old_start = indicators_exuber[, min(as.Date(time))]
+ exuber_start_total = as.Date("2023-02-14")
++riskcombo_start = as.Date("2025-05-21")
+ least_volatile_start = rbi_lv[, min(as.Date(date))]
+ 
+ 
+@@ -286,6 +295,7 @@ dt_portfolio = function(df, filename = "df", dates = NULL) {
+           th('Portfolio Statistics'),
+           th('Strategy PRA'),    th('Benchmark'),
+           th('Strategy MinMAx'), th('Benchmark'),
++          th('Strategy Risk Combo'), th('Benchmark'),
+           th('Strategy Exuber'), th('Benchmark'),
+           th('Strategy LV'), th('Benchmark')
+           # ADD HERE
+@@ -309,14 +319,14 @@ dt_portfolio = function(df, filename = "df", dates = NULL) {
+               ),
+               rowCallback = JS(
+                 "function(row, data, displayNum, index) {",
+-                "  if (index < 2 || index === 6) {", # CHANGE HERE
++                "  if (index < 2 || index === 6 || index == 7) {", # CHANGE HERE IF NEW ROWS ADDED
+                 "  for (var i = 1; i <= data.length; i++) {",
+                 "      var num = (parseFloat(data[i]) * 100).toFixed(2) + '%';",
+                 "      $('td:eq(' + i + ')', row).html(num);",
+                 "  }",
+                 "  }",
+                 "",
+-                "  var targetIndecies = [2, 3, 4, 5, 8];", # CHANGE HERE
++                "  var targetIndecies = [2, 3, 4, 5, 8, 9, 10];", # CHANGE HERE COLUMNS ADDED
+                 "  if (targetIndecies.includes(index)) {",
+                 "    for (var i = 1; i < data.length; i++) {",
+                 "      var num = parseFloat(data[i]).toFixed(2);",
+diff --git a/module_strategy.R b/module_strategy.R
+index ad5a7d8..d120e8a 100644
+--- a/module_strategy.R
++++ b/module_strategy.R
+@@ -127,17 +127,17 @@ module_strategy_ui <- function(id, alpha = NULL) {
+ module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
+                                   alpha = NULL) {
+   # Debug
+-  # xml_paths = FLEX_MINMAX
++  # xml_paths = FLEX_RISKCOMBO
+   # start_date = minmax_start
+   # end_date = NULL
+   # strategy = Strategy$new(lapply(xml_paths, read_xml), start_date, end_date)
+   # strategy$start_date
+   # strategy$end_date
++  # nav_units = strategy$calculate_nav_units("SPY", unit = NULL)
+   # cfd_charge = strategy$extract_node("CFDCharge")
+   # equity_summary_by_report_date_in_base = strategy$extract_node("EquitySummaryByReportDateInBase")
+   # equity_summary_by_report_date_in_base[, format(last(total), big.mark = ",", scientific = FALSE)]
+   # strategy$calculate_nav_units("SPY", unit = 2)
+-  # nav_units = strategy$calculate_nav_units("SPY", unit = NULL)
+   # r = as.xts.data.table(nav_units[, .(date, Strategy, Benchmark)])
+   # returns = na.omit(Return.calculate(r))
+   # paste0(round(Return.annualized(returns)[1,1] * 100, 2), "%")
+diff --git a/rsconnect/shinyapps.io/forensis/CGSdelta.dcf b/rsconnect/shinyapps.io/forensis/CGSdelta.dcf
+index 6144fe7..264030a 100644
+--- a/rsconnect/shinyapps.io/forensis/CGSdelta.dcf
++++ b/rsconnect/shinyapps.io/forensis/CGSdelta.dcf
+@@ -5,7 +5,7 @@ account: forensis
+ server: shinyapps.io
+ hostUrl: https://api.shinyapps.io/v1
+ appId: 12248018
+-bundleId: 10323502
++bundleId: 10383403
+ url: https://forensis.shinyapps.io/CGSdelta/
+ version: 1
+ asMultiple: FALSE
+
+25ea3cde5872c2107a03cae0ddca4e332227f73b MislavSag Thu May 22 14:44:03 2025 +0200 init and final
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..221b531
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,5 @@
++.Rproj.user
++.Rhistory
++.RData
++.Ruserdata
++.Renviron
+diff --git a/CGSdash.Rproj b/CGSdash.Rproj
+new file mode 100644
+index 0000000..e83436a
+--- /dev/null
++++ b/CGSdash.Rproj
+@@ -0,0 +1,16 @@
++Version: 1.0
++
++RestoreWorkspace: Default
++SaveWorkspace: Default
++AlwaysSaveHistory: Default
++
++EnableCodeIndexing: Yes
++UseSpacesForTab: Yes
++NumSpacesForTab: 2
++Encoding: UTF-8
++
++RnwWeave: Sweave
++LaTeX: pdfLaTeX
++
++AutoAppendNewline: Yes
++StripTrailingWhitespace: Yes
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..90f7780
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,47 @@
++## Add new strategy to the app
++
++Steps to add new strategy to the app:
++
++1. Create Flex report template in Interactive Brokers Client Portal. Include all possible data in the flex report. Since, flex report can be created only for the last 365 calendar days, make sure you create multiple files if date range for the strategy (sub account) is greater than 365 days. I create flex report for each year. For current year, I recreate flex report every day.
++2. In the imports.R file set urls where above xml documents (flex reports) can be downloaded. Example for one strategy:
++```
++FLEX_MINMAX = c(
++  "https://snpmarketdata.blob.core.windows.net/flex/minmax_2022.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/minmax_2023.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/minmax.xml"
++)
++```
++3. Define start date in imports.R file after the above code. Example:
++```
++# strategies start
++minmax_start = indicators_minmax[, min(as.Date(time))]
++pra_start = indicators_pra[, min(as.Date(time))]
++exuber_start = as.Date("2024-05-01")
++exuber_old_start = as.Date("2024-01-02")
++```
++4. Add new strategy to the app.R file. Example:
++```
++nav_panel("MinMax", module_strategy_ui("minmax", alpha_ui_minmax)),
++nav_panel("PRA", module_strategy_ui("pra", alpha_ui_pra)),
++nav_panel("Exuber", module_strategy_ui("exuber", alpha_ui_exuber)),
++```
++5. Add new strategy to the app.R server. Example:
++```
++  portfolio_stats_pra = module_strategy_server(
++    "pra",
++    FLEX_PRA,
++    start_date = pra_start,
++    end_date = NULL,
++    alpha = alpha_server_pra
++```
++
++6. Optionally, add alpha navtab panel to the app to explain alpha in detail. Steps to add slpha navtab panel to specific strategy are:
++
++- Crete new R script with name alpha_{strteagy name}.R
++- Copy paste content from alpha_pra.R file.
++- Change all pra words with new strategy name (say exuber).
++- make all necessary changes.
++- source alpha_{strtegy name}.R file in app.R
++- make sure you have added new alpha in app.R ui like this `nav_panel("MinMax", module_strategy_ui("minmax", alpha_ui_minmax)),` and in the app.R server like this `module_strategy_server("minmax", alpha_server_minmax)`.
++
++
+diff --git a/alpha_exuber.R b/alpha_exuber.R
+new file mode 100644
+index 0000000..db4423d
+--- /dev/null
++++ b/alpha_exuber.R
+@@ -0,0 +1,57 @@
++# source("imports.R")
++
++# Trades summary
++strategy_exuber = Strategy$new(lapply(FLEX_EXUBER, read_xml), exuber_start)
++trades_dt_exuber_summary = strategy_exuber$summary_cfd_trades()
++
++# UI
++alpha_ui_exuber = function(ns) {
++  tagList(
++    card(
++      card_header("exuber indicators graph"),
++      max_height = "1000px",
++      layout_column_wrap(
++        layout_sidebar(
++          sidebar = sidebar(
++            selectInput(ns("select_tz_exuber"), label = h5("Select Timezone"),
++                        choices = list("NY" = 1, "UTC" = 2, "Local" = 3),
++                        selected = 1),
++          ),
++          dygraphOutput(ns("indicators_exuber_graph")),
++          br(),
++          dataTableOutput(ns("indicators_exuber_table"))
++        ),
++      )
++
++    )
++  )
++}
++
++# Server
++alpha_server_exuber = function(input, output, session, strategy) {
++
++  output$indicators_exuber_table = renderDataTable({
++    indicators_exuber_ = indicators_exuber[time > exuber_start]
++    setnames(indicators_exuber_, "time", "time_UTC")
++    myDT(indicators_exuber_, paste0("indicators_exuber_", "-", Sys.Date()))
++  }, server = FALSE)
++
++  output$indicators_exuber_graph = renderDygraph({
++    ind_trades = merge_indicators_trades(
++      indicators_exuber[time > exuber_start, .(time,
++                            RADF,
++                            tar_threshold_1,
++                            tar_threshold_2,
++                            radf_best_param,
++                            wf_threshold)],
++      trades_dt_exuber_summary, "RADF"
++    )
++    ind_trades = ind_trades[, .(time_indicator, RADF,
++                                radf_best_param,
++                                wf_threshold, buy, sell)]
++    dg = dygraph(as.xts.data.table(ind_trades), main = "Exuber indicator") %>%
++      dySeries("buy", pointSize = 6, pointShape = "dot", color = "green") %>%
++      dySeries("sell", pointSize = 6, pointShape = "dot", color = "red")
++    set_timezone(dg, input = input$select_tz_exuber)
++  })
++}
+diff --git a/alpha_exuber_old.R b/alpha_exuber_old.R
+new file mode 100644
+index 0000000..6351d22
+--- /dev/null
++++ b/alpha_exuber_old.R
+@@ -0,0 +1,57 @@
++# source("imports.R")
++
++# Trades summary
++strategy_exuber_old = Strategy$new(lapply(FLEX_EXUBER, read_xml), exuber_old_start, exuber_start)
++trades_dt_exuber_OLD_summary = strategy_exuber_old$summary_cfd_trades()
++
++# UI
++alpha_ui_exuber_old = function(ns) {
++  tagList(
++    card(
++      card_header("exuber indicators graph"),
++      max_height = "1000px",
++      layout_column_wrap(
++        layout_sidebar(
++          sidebar = sidebar(
++            selectInput(ns("select_tz_exuber"), label = h5("Select Timezone"),
++                        choices = list("NY" = 1, "UTC" = 2, "Local" = 3),
++                        selected = 1),
++          ),
++          dygraphOutput(ns("indicators_exuber_graph")),
++          br(),
++          dataTableOutput(ns("indicators_exuber_table"))
++        ),
++      )
++
++    )
++  )
++}
++
++# Server
++alpha_server_exuber_old = function(input, output, session, strategy) {
++
++  output$indicators_exuber_table = renderDataTable({
++    indicators_exuber_ = indicators_exuber[time <= exuber_start]
++    setnames(indicators_exuber_, "time", "time_UTC")
++    myDT(indicators_exuber_, paste0("indicators_exuber_", "-", Sys.Date()))
++  }, server = FALSE)
++
++  output$indicators_exuber_graph = renderDygraph({
++    ind_trades = merge_indicators_trades(
++      indicators_exuber[time <= exuber_start, .(time,
++                            RADF,
++                            tar_threshold_1,
++                            tar_threshold_2,
++                            radf_best_param,
++                            wf_threshold)],
++      trades_dt_exuber_OLD_summary, "RADF"
++    )
++    ind_trades = ind_trades[, .(time_indicator, RADF,
++                                radf_best_param,
++                                wf_threshold, buy, sell)]
++    dg = dygraph(as.xts.data.table(ind_trades), main = "Exuber indicator") %>%
++      dySeries("buy", pointSize = 6, pointShape = "dot", color = "green") %>%
++      dySeries("sell", pointSize = 6, pointShape = "dot", color = "red")
++    set_timezone(dg, input = input$select_tz_exuber)
++  })
++}
+diff --git a/alpha_minmax.R b/alpha_minmax.R
+new file mode 100644
+index 0000000..0f6bce3
+--- /dev/null
++++ b/alpha_minmax.R
+@@ -0,0 +1,60 @@
++# source("imports.R")
++
++# Trades summary
++strategy_minmax = Strategy$new(lapply(FLEX_MINMAX, read_xml), pra_start)
++trades_dt_minmax_summary = strategy_minmax$summary_cfd_trades()
++
++# UI
++alpha_ui_minmax = function(ns) {
++  tagList(
++    card(
++      card_header("minmax indicators graph"),
++      max_height = "1000px",
++      layout_column_wrap(
++        layout_sidebar(
++          sidebar = sidebar(
++            selectInput(ns("select_tz_minmax"), label = h5("Select Timezone"),
++                        choices = list("NY" = 1, "UTC" = 2, "Local" = 3),
++                        selected = 1),
++          ),
++          dygraphOutput(ns("indicators_minmax_graph")),
++          br(),
++          p("Note: Red shaded area refers to time when there was error
++                   in the Quanconnect live node (without email notificaton):
++                   Brokerage Info: Request Account Data Sending Error - .
++                   We have developed Azure Function that checks for logs
++                   every hour to see if strategy is live."),
++          br(),
++          dataTableOutput(ns("indicators_minmax_table"))
++        ),
++      )
++
++    )
++  )
++}
++
++# Server
++alpha_server_minmax = function(input, output, session, strategy) {
++
++  output$indicators_minmax_table = renderDataTable({
++    indicators_minmax_ = copy(indicators_minmax)
++    setnames(indicators_minmax_, "time", "time_UTC")
++    myDT(indicators_minmax_, paste0("indicators_minmax_", "-", Sys.Date()))
++  }, server = FALSE)
++
++  output$indicators_minmax_graph <- renderDygraph({
++    ind_trades = merge_indicators_trades(
++      indicators_minmax[, .(time, minmax_indicator)],
++      trades_dt_minmax_summary,
++      "minmax_indicator"
++    )
++    ind_trades = ind_trades[, .(time_indicator, minmax_indicator, buy, sell)]
++    ind_trades[, threshold := -0.004]
++    dg = dygraph(as.xts.data.table(ind_trades), main = "MinMax indicator") %>%
++      # dyLimit(limit = -0.004, color = "red") %>%
++      dySeries("buy", pointSize = 6, pointShape = "dot", color = "green") %>%
++      dySeries("sell", pointSize = 6, pointShape = "dot", color = "red") %>%
++      dyShading(from = "2023-02-28", to = "2023-03-07", color = "#FFE6E6")
++    set_timezone(dg, input = input$select_tz_minmax)
++  })
++}
+diff --git a/alpha_pra.R b/alpha_pra.R
+new file mode 100644
+index 0000000..b3730e0
+--- /dev/null
++++ b/alpha_pra.R
+@@ -0,0 +1,53 @@
++# source("imports.R")
++
++# Trades summary
++strategy_pra = Strategy$new(lapply(FLEX_PRA, read_xml), pra_start)
++trades_dt_pra_summary = strategy_pra$summary_cfd_trades()
++
++# UI
++alpha_ui_pra = function(ns) {
++  tagList(
++    card(
++      card_header("PRA indicators graph"),
++      max_height = "1000px",
++      layout_column_wrap(
++        layout_sidebar(
++          sidebar = sidebar(
++            selectInput(ns("select_tz_pra"), label = h5("Select Timezone"),
++                        choices = list("NY" = 1, "UTC" = 2, "Local" = 3),
++                        selected = 1),
++          ),
++          dygraphOutput(ns("indicators_pra_graph")),
++          br(),
++          dataTableOutput(ns("indicators_pra_table"))
++        ),
++      )
++
++    )
++  )
++}
++
++# Server
++alpha_server_pra = function(input, output, session, strategy) {
++
++  output$indicators_pra_table = renderDataTable({
++    indicators_pra_ = copy(indicators_pra)
++    setnames(indicators_pra_, "time", "time_UTC")
++    myDT(indicators_pra_, paste0("indicators_pra_", "-", Sys.Date()))
++  }, server = FALSE)
++
++  output$indicators_pra_graph <- renderDygraph({
++    ind_trades = merge_indicators_trades(
++      indicators_pra[, .(time, pra_indicator)],
++      trades_dt_pra_summary,
++      "pra_indicator"
++    )
++    ind_trades = ind_trades[, .(time_indicator, pra_indicator, buy, sell)]
++    ind_trades[, threshold := 5]
++    dg = dygraph(as.xts.data.table(ind_trades), main = "PRA indicator") %>%
++      # dyLimit(limit = 5, color = "red") %>%
++      dySeries("buy", pointSize = 6, pointShape = "dot", color = "green") %>%
++      dySeries("sell", pointSize = 6, pointShape = "dot", color = "red")
++    set_timezone(dg, input = input$select_tz_pra)
++  })
++}
+diff --git a/app.R b/app.R
+new file mode 100644
+index 0000000..eb19cd9
+--- /dev/null
++++ b/app.R
+@@ -0,0 +1,183 @@
++source("imports.R")
++source("module_strategy.R")
++source("module_strategy_rbi.R")
++source("alpha_pra.R")
++source("alpha_minmax.R")
++source("alpha_exuber.R")
++source("alpha_exuber_old.R")
++
++
++ui = bslib::page_navbar(
++  header = autoWaiter(),
++  title = "CGS Delta",
++  id = "nav",
++  tags$head(
++    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
++  ),
++  sidebar = NULL,
++  bslib::nav_panel("Overview", layout_columns(
++    col_widths = c(-2, 8, -2),
++    card(
++      card_header("Strategy Performance"),
++      max_height = "100%",
++      layout_sidebar(sidebar = sidebar(
++        checkboxInput("leverage", "Leverage", value = TRUE)
++      ), DT::DTOutput("dt_shared_returns"))
++    ),
++    card(
++      card_header("Positions"),
++      max_height = "100%",
++      uiOutput("ui_strategies_in_positions")
++    )
++  )),
++  bslib::nav_panel("MinMax", module_strategy_ui("minmax", alpha_ui_minmax)),
++  bslib::nav_panel("PRA", module_strategy_ui("pra", alpha_ui_pra)),
++  bslib::nav_panel("Exuber", module_strategy_ui("exuber", alpha_ui_exuber)),
++  bslib::nav_panel("Exuber old", module_strategy_ui("exuber_old", alpha_ui_exuber_old)),
++  bslib::nav_panel("Exuber total", module_strategy_ui("exuber_total")),
++  bslib::nav_panel("Least Volatile", module_strategy_ui_rbi("least_volatile")),
++  # make dropdown list of nav_panels
++  # nav_menu(
++  #   title = "Strategies",
++  #   nav_panel("Exuber old", module_strategy_ui("exuber_old", alpha_ui_exuber_old)),
++  # )
++)
++
++server = function(input, output) {
++  o_pra = module_strategy_server(
++    "pra",
++    FLEX_PRA,
++    start_date = pra_start,
++    end_date = NULL,
++    alpha = alpha_server_pra
++  )
++  o_minmax = module_strategy_server(
++    "minmax",
++    FLEX_MINMAX,
++    start_date = minmax_start,
++    end_date = NULL,
++    alpha = alpha_server_minmax
++  )
++  o_exuber = module_strategy_server(
++    "exuber",
++    FLEX_EXUBER,
++    start_date = exuber_start,
++    end_date = NULL,
++    alpha = alpha_server_exuber
++  )
++  portfolio_stats_exuber_old = module_strategy_server(
++    "exuber_old",
++    FLEX_EXUBER,
++    start_date = exuber_old_start,
++    end_date = exuber_start,
++    alpha = alpha_server_exuber_old
++  )
++  portfolio_stats_exuber_total = module_strategy_server(
++    "exuber_total",
++    FLEX_EXUBER,
++    start_date = exuber_start_total,
++    end_date = NULL
++  )
++  o_lv = module_strategy_server_rbi(
++    "least_volatile",
++    nav_units = rbi_lv,
++    positions = rbi_lv_portfolio,
++    start_date = least_volatile_start,
++    end_date = NULL,
++    alpha = NULL
++  )
++  output$dt_shared_returns = DT::renderDT({
++    leverage_ = if (isTRUE(input$leverage)) NULL else 2
++    dates = c(o_pra()$date, o_minmax()$date, o_exuber()$date, o_lv()$date) # , as.Date("2020-01-01")
++    # print(head(Return.calculate(as.xts.data.table(o_pra()$nav_units[, .(date, Strategy, Benchmark)]))))
++
++    # strategy()$calculate_nav_units(
++    #   "SPY",
++    #   unit = if (input$leverage == TRUE) NULL else 2,
++    #   start_date = input$date_range[1],
++    #   end_date = input$date_range[2]
++    # )
++    # if (input$leverage == TRUE) NULL else 2
++    dt_ = cbind(
++      get_portfolio_stats_from_strategy(o_pra()$strategy, o_pra()$date, leverage_),
++      get_portfolio_stats_from_strategy(o_minmax()$strategy, o_minmax()$date, leverage_),
++      get_portfolio_stats_from_strategy(o_exuber()$strategy, o_exuber()$date, leverage_),
++      get_portfolio_stats(rbi_lv)
++    )
++    # colnames(dt_) = c("PRA", "Benchmark",
++    #                   "MinMax", "Benchmark",
++    #                   "Exuber", "Benchmark")
++    # c(dates, o_lv()$date)
++    dt_portfolio(dt_, "strategy_performance", dates) |>
++      formatStyle(columns = 2:3, backgroundColor = "#f0f8ff") |>
++      formatStyle(columns = 4:5, backgroundColor = "#f0fff0") |>
++      formatStyle(columns = 6:7, backgroundColor = "#ffe4e1") |>
++      formatStyle(columns = 8:9, backgroundColor = "#f0f8ff")
++  })
++
++  output$ui_strategies_in_positions <- renderUI({
++    # Check each module's `portfolio_has_asset`
++    has_pra    = o_pra()$portfolio_has_asset
++    has_minmax = o_minmax()$portfolio_has_asset
++    has_exuber = o_exuber()$portfolio_has_asset
++    has_exuber_old <- portfolio_stats_exuber_old()$portfolio_has_asset
++    has_exuber_total <- portfolio_stats_exuber_total()$portfolio_has_asset
++    has_lv      <- o_lv()$portfolio_has_asset
++
++    # Build a small info string
++    # For example, you can keep a named vector of bools:
++    # Named logical vector
++    strategy_status <- c(
++      "PRA"          = has_pra,
++      "MinMax"       = has_minmax,
++      "Exuber"       = has_exuber,
++      "Least Vol"    = has_lv
++    )
++
++    tagList(
++      # tags$p("All strategies:"),
++      tags$div(
++        lapply(names(strategy_status), function(strat) {
++          in_position <- strategy_status[[strat]]
++          if (in_position %notin% c("FALSE", "TLT")) {
++            # GREEN BADGE
++            tags$span(
++              class = "badge bg-success me-1",
++              bs_icon("check-circle-fill", class = "text-white me-1", style = "font-size: 0.85em;"),
++              strat
++            )
++          } else if (in_position == "TLT") {
++            # BLUE BADGE
++            tags$span(
++              class = "badge bg-primary me-1",
++              bs_icon("info-circle-fill", class = "text-white me-1", style = "font-size: 0.85em;"),
++              strat
++            )
++
++          } else {
++            # GRAY BADGE
++            tags$span(
++              class = "badge bg-secondary me-1",
++              strat
++            )
++          }
++        })
++      )
++    )
++  })
++}
++
++shinyApp(ui, server)
++
++# get_portfolio_stats_from_strategy = function(strategy, start_date = NULL, unit = NULL) {
++#   nav_units_ = strategy$calculate_nav_units(
++#     "SPY",
++#     unit = unit,
++#     start_date = start_date,
++#     end_date = NULL
++#   )
++#   nav_units_ = nav_units_[, .(date, Strategy, Benchmark)]
++#   r_ = na.omit(Return.calculate(as.xts.data.table(nav_units_)))
++#   get_portfolio_stats(as.data.table(r_))
++# }
++#
+diff --git a/imports.R b/imports.R
+new file mode 100644
+index 0000000..6c79691
+--- /dev/null
++++ b/imports.R
+@@ -0,0 +1,534 @@
++library(shiny)
++library(ibflexr)
++library(DT)
++library(dygraphs)
++library(xml2)
++library(DBI)
++library(data.table)
++library(bsicons)
++library(RPostgres)
++library(lubridate)
++library(PerformanceAnalytics)
++library(quarto)
++library(yaml)
++library(htmltools)
++library(waiter)
++library(bslib)
++library(httr)
++
++library(PMwR)
++library(yahoofinancer)
++
++
++# SET UP ------------------------------------------------------------------
++# Connect to database
++connec = dbConnect(
++  RPostgres::Postgres(),
++  dbname = "defaultdb",
++  host = "db-postgresql-fra1-54406-do-user-13776848-0.c.db.ondigitalocean.com",
++  port = 25060L,
++  user = "doadmin",
++  password = "AVNS_7h0PktF6BbOHWOUK45K"
++)
++
++
++# MINMAX INDICATORS -------------------------------------------------------
++# Indicator values from logs
++logs = "
++2023-02-10 15:00:00 0.011681145000756475
++2023-02-10 16:00:00 0.011681145000756475
++2023-02-10 17:00:00 0.011681145000756473
++2023-02-10 18:00:00 0.011681145000756475
++2023-02-10 19:00:00 0.011681145000756473
++2023-02-10 20:00:00 0.011681145000756475
++2023-02-10 21:00:00 0.017864628004722143
++2023-02-13 15:00:00 -0.011800809609643048
++2023-02-13 16:00:00 -0.01180080960964305
++2023-02-13 17:00:00 -0.01180080960964305
++2023-02-13 18:00:00 -0.011800809609643048
++2023-02-13 19:00:00 -0.011800809609643047
++2023-02-13 20:00:00 -0.01180080960964305
++2023-02-13 21:00:00 -0.011111844687481928
++2023-02-14 15:00:00 -0.010978820712341327
++2023-02-14 16:00:00 -0.010978820712341327
++2023-02-14 17:00:00 -0.010978820712341327
++2023-02-14 18:00:00 -0.010978820712341327
++2023-02-14 19:00:00 -0.010978820712341327
++2023-02-14 20:00:00 -0.058022819911335566
++2023-02-14 21:00:00 -0.05390246347060714
++2023-02-15 15:00:00 0.0036659871989291287
++2023-02-15 16:00:00 0.003665987198929138
++2023-02-15 17:00:00 -0.05399230494622139
++2023-02-15 18:00:00 0.0027993984095100507
++2023-02-15 19:00:00 -0.05497669496114871
++2023-02-15 20:00:00 -0.05537040057355189
++2023-02-15 21:00:00 0.0033009383033132202
++2023-02-16 15:00:00 0.006477360159233874
++2023-02-16 16:00:00 -0.05133560725170316
++2023-02-16 17:00:00 -0.005581545187280765
++2023-02-16 18:00:00 -0.005581545187280761
++2023-02-16 19:00:00 -0.005581545187280755
++2023-02-16 20:00:00 -0.05143112814387491
++2023-02-16 21:00:00 -0.05157235500756082
++2023-02-17 15:00:00 -0.050515607704043564
++2023-02-17 16:00:00 -0.049376582105548836
++2023-02-17 17:00:00 -0.049949745612805456
++2023-02-17 18:00:00 -0.04994974561280544
++2023-02-17 19:00:00 -0.049805281727045604
++2023-02-17 20:00:00 -0.051081564957261336
++2023-02-17 21:00:00 -0.052678353789496285
++2023-02-21 19:00:00 -0.0541708032232994
++2023-02-21 20:00:00 -0.05705230538989443
++2023-02-21 21:00:00 -0.05304847206782718
++2023-02-22 15:00:00 -0.056970208005096
++2023-02-22 16:00:00 -0.05696357249550578
++2023-02-22 17:00:00 -0.05696357249550575
++2023-02-22 18:00:00 -0.056963572495505745
++2023-02-22 19:00:00 -0.05696357249550578
++2023-02-22 20:00:00 -0.05717761257608076
++2023-02-22 21:00:00 -0.056409434210420564
++2023-02-23 15:00:00 -0.056044846750426015
++2023-02-23 16:00:00 -0.056044846750426
++2023-02-23 17:00:00 -0.055383745112356705
++2023-02-23 18:00:00 -0.055383745112356705
++2023-02-23 19:00:00 -0.056086661649492775
++2023-02-23 20:00:00 0.0033331202978616283
++2023-02-23 21:00:00 0.0033331202978616075
++2023-02-24 15:00:00 -0.05634948752658412
++2023-02-24 16:00:00 -0.05634948752658411
++2023-02-24 17:00:00 0.0014758725067841013
++2023-02-24 18:00:00 -0.05700515088737586
++2023-02-24 19:00:00 0.0013000474929120774
++2023-02-24 20:00:00 0.0017093386139375906
++2023-02-24 21:00:00 -0.05591449042436064
++2023-02-27 15:00:00 0.007025035831321312
++2023-02-27 17:00:00 0.007025035831321313
++2023-02-27 18:00:00 0.0070250358313213145
++2023-02-27 19:00:00 0.007025035831321313
++2023-02-27 20:00:00 0.007025035831321315
++2023-02-27 21:00:00 0.007025255625577275
++2023-03-07 16:00:00 0.03203482528632645
++2023-03-07 17:00:00 0.03203482528632645
++2023-03-07 18:00:00 0.03203482528632645
++2023-03-07 19:00:00 0.03203482528632645
++2023-03-07 20:00:00 0.03203482528632645
++2023-03-07 21:00:00 0.03203482528632645
++2023-03-08 16:00:00 0.0970052452799304
++2023-03-08 17:00:00 0.0970052452799304
++2023-03-08 18:00:00 0.0970052452799304
++2023-03-08 20:00:00 0.0970052452799304
++2023-03-08 21:00:00 0.0970052452799304
++2023-03-09 15:00:00 0.004868208959803898
++2023-03-09 16:00:00 0.004868208959803898
++2023-03-09 17:00:00 0.004868208959803898
++2023-03-09 18:00:00 0.004868208959803898
++2023-03-09 19:00:00 0.004868208959803898
++2023-03-09 20:00:00 0.0048682089598039
++2023-03-09 21:00:00 0.0048682089598039
++"
++df = read.table(text = logs, col.names = c("date", "time", "value"))
++df = as.data.table(df)
++df[, timestamp := as.POSIXct(paste(date, time), tz = "Europe/Warsaw")]
++df[, timestamp := with_tz(timestamp, tz = "UTC")]
++minmax_old = df[, .(timestamp, value)]
++
++# set non=-working date
++# minmax_error = data.table(
++#   seq.Date()
++# )
++minmax_error = data.table(
++  timestamp = c(
++    seq(from=as.POSIXct("2023-02-28 16:00", tz="UTC"),
++        to=as.POSIXct("2023-02-28 21:00", tz="UTC"),
++        by="hour"),
++    seq(from=as.POSIXct("2023-03-01 16:00", tz="UTC"),
++        to=as.POSIXct("2023-03-01 21:00", tz="UTC"),
++        by="hour"),
++    seq(from=as.POSIXct("2023-03-02 16:00", tz="UTC"),
++        to=as.POSIXct("2023-03-02 21:00", tz="UTC"),
++        by="hour"),
++    seq(from=as.POSIXct("2023-03-03 16:00", tz="UTC"),
++        to=as.POSIXct("2023-03-03 21:00", tz="UTC"),
++        by="hour"),
++    seq(from=as.POSIXct("2023-03-06 16:00", tz="UTC"),
++        to=as.POSIXct("2023-03-06 21:00", tz="UTC"),
++        by="hour")
++  ),
++  value = NA_real_
++)
++minmax_old = rbind(minmax_old, minmax_error)
++setorder(minmax_old, timestamp)
++
++# minmax indicators
++indicators_minmax = dbReadTable(connec, "indicators_minmax")
++indicators_minmax = as.data.table(indicators_minmax)
++indicators_minmax = indicators_minmax[as.Date(timestamp) > as.Date("2023-03-09")]
++indicators_minmax = rbind(minmax_old, indicators_minmax[, .(timestamp, value)])
++setnames(indicators_minmax, c("timestamp", "value"), c("time", "minmax_indicator"))
++indicators_minmax[, threshold := -0.004]
++
++
++# PRA INDICATORS ----------------------------------------------------------
++# PRA indicators
++indicators_pra = dbReadTable(connec, "indicators_pra")
++indicators_pra = as.data.table(indicators_pra)
++indicators_pra = indicators_pra[-1, c(1, 3)]
++setnames(indicators_pra, c("timestamp", "value"), c("time", "pra_indicator"))
++
++
++# EXUBER INDICATORS -------------------------------------------------------
++# exuber indicators
++indicators_exuber = dbReadTable(connec, "cgsexuberyieldtbl")
++indicators_exuber = as.data.table(indicators_exuber)
++indicators_exuber = dcast(indicators_exuber, timestamp ~ variable, value.var = "value")
++setnames(indicators_exuber, "timestamp", "time")
++
++
++# CLOSE CONNECTION --------------------------------------------------------
++# close connection
++dbDisconnect(connec)
++
++
++# RBI STRATEGIES ----------------------------------------------------------
++# Least Volatile
++rbi_lv = fread("https://snpmarketdata.blob.core.windows.net/rbi/least_volatile_prinosi.csv",
++               col.names = c("date", "strategy_ret", "benchmark_ret", "strategy", "benchmark"))
++rbi_lv_portfolio = fread("https://snpmarketdata.blob.core.windows.net/rbi/least_volatile_pozicije.csv")
++
++
++# INPUTS -----------------------------------------------------------------
++# Flex report urls for all strategies
++FLEX_PRA = c(
++  "https://snpmarketdata.blob.core.windows.net/flex/pra_2023.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/pra_old_account.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/pra_2024.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/pra.xml"
++)
++FLEX_MINMAX = c(
++  "https://snpmarketdata.blob.core.windows.net/flex/minmax_2022.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/minmax_2023.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/minmax_old_account.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/minmax_2024.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/minmax.xml"
++)
++FLEX_EXUBER = c(
++  "https://snpmarketdata.blob.core.windows.net/flex/exuberbondsml_2023.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/exuberv1_old_account.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/exuber_2024.xml",
++  "https://snpmarketdata.blob.core.windows.net/flex/exuberv1.xml"
++)
++
++# strategies start
++# Old - my way - first indicator apparance
++# minmax_start = indicators_minmax[, min(as.Date(time))]
++# pra_start = indicators_pra[, min(as.Date(time))]
++# exuber_start = as.Date("2024-05-01")
++# exuber_old_start = indicators_exuber[, min(as.Date(time))]
++# exuber_start_total = as.Date(2023-02-14)
++# Hardcoded Andrea dates
++minmax_start = as.Date("2022-11-21")
++pra_start = as.Date("2023-03-22")
++exuber_start = as.Date("2024-05-01")
++exuber_old_start = indicators_exuber[, min(as.Date(time))]
++exuber_start_total = as.Date("2023-02-14")
++least_volatile_start = rbi_lv[, min(as.Date(date))]
++
++
++# UTILS -------------------------------------------------------------------
++# Data table template
++myDT = function(df, filename, rownames = FALSE) {
++  DT::datatable(
++    df,
++    rownames = rownames,
++    extensions = c('Buttons', "FixedHeader"),
++    options = list(
++      dom = 'Brtpl',
++      scrollX = TRUE,
++      buttons = list(
++        'copy',
++        list(extend = 'csv', filename = filename),
++        list(extend = 'excel', filename = filename),
++        list(extend = 'pdf', filename = filename),
++        'print'
++        # list(extend = 'colvis', columns = c(1:(ncol(
++        #   df
++        # ) - 1)))
++      )
++    ),
++  )
++}
++
++dt_portfolio = function(df, filename = "df", dates = NULL) {
++  # Debug
++  # df = get_portfolio_stats(rbi_lv)
++  # dates = Sys.Date()
++
++  # Convert df to data frame if it is xts
++  if (is.matrix(df)) {
++    df = as.data.table(df, keep.rownames = TRUE)
++    colnames(df)[1] = 'Portfolio Statistics'
++  }
++
++  # Change column names for RBI
++  if ("strategy_ret" %in% names(df)) {
++    setnames(df, c("strategy_ret", "benchmark_ret"), c("LV", "Benchmark"))
++  }
++
++  if (!is.null(dates)) {
++    sketch = htmltools::withTags(table(
++      class = 'display',
++      thead(
++        tr(
++          th("Start date"),
++          lapply(dates, function(x) th(x, colspan = 2, style = "text-align: center;"))
++        ),
++        tr(
++          th('Portfolio Statistics'),
++          th('Strategy PRA'),    th('Benchmark'),
++          th('Strategy MinMAx'), th('Benchmark'),
++          th('Strategy Exuber'), th('Benchmark'),
++          th('Strategy LV'), th('Benchmark')
++          # ADD HERE
++        )
++      )
++    )
++    )
++  }
++  datatable(df,
++            rownames = FALSE,
++            extensions = c('Buttons', "FixedHeader"),
++            options = list(
++              dom = 'Brt', # 'Brtpl'
++              scrollX = TRUE,
++              buttons = list(
++                'copy',
++                list(extend = 'csv', filename = filename),
++                list(extend = 'excel', filename = filename),
++                list(extend = 'pdf', filename = filename),
++                'print'
++              ),
++              rowCallback = JS(
++                "function(row, data, displayNum, index) {",
++                "  if (index < 2 || index === 6) {", # CHANGE HERE
++                "  for (var i = 1; i <= data.length; i++) {",
++                "      var num = (parseFloat(data[i]) * 100).toFixed(2) + '%';",
++                "      $('td:eq(' + i + ')', row).html(num);",
++                "  }",
++                "  }",
++                "",
++                "  var targetIndecies = [2, 3, 4, 5, 8];", # CHANGE HERE
++                "  if (targetIndecies.includes(index)) {",
++                "    for (var i = 1; i < data.length; i++) {",
++                "      var num = parseFloat(data[i]).toFixed(2);",
++                "      $('td:eq(' + i + ')', row).html(num);",
++                "    }",
++                "  }",
++                "}"
++              )
++            ),
++            container = if (is.null(dates)) tags$table(tableHeader(colnames(df), TRUE),
++                                                       class = "display") else sketch
++  )
++}
++
++# dt_portfolio(portfolio_stats, "test")
++# dt_portfolio(portfolio_stats, "test", dates = as.character(Sys.Date()))
++
++# Help function to merge indicators and trades
++merge_indicators_trades = function(indicators, trades, val = "value") {
++  # indicators = copy(indicators_pra[, .(time, pra_indicator)])
++  # trades = copy(trades_dt_pra_summary)
++  # val = "pra_indicator"
++
++  # Set timezones
++  trades[, dateTime := force_tz(dateTime, tzone = "America/New_York")]
++  indicators[, time := with_tz(time, tzone = "America/New_York")]
++
++  # Merge indicators and trades
++  indicators[, time_indicator := time]
++  indicators_and_trades = indicators[trades, on = c("time" = "dateTime"), roll = "nearest"]
++  indicators_and_trades = indicators_and_trades[, .(time, time_indicator, q, p)]
++
++  # Merge now indicators and merged trades
++  res = indicators_and_trades[indicators, on = c("time_indicator" = "time")]
++
++  # Set indicator values for buy and sell
++  res[q > 0, buy := get(val)]
++  res[q < 0, sell := get(val)]
++
++  # Keep unique
++  res = unique(res, by = "time_indicator")
++
++  return(res)
++}
++
++# set timezone for dygraph
++set_timezone = function(dg, input = 1) {
++  if (input == 1) {
++    dg %>%
++      dyOptions(includeZero = TRUE, useDataTimezone = TRUE)
++  } else if (input == 2) {
++    dg %>%
++      dyOptions(includeZero = TRUE, labelsUTC = TRUE)
++  } else if (input == 3) {
++    dg %>%
++      dyOptions(includeZero = TRUE)
++  }
++}
++
++# Get first date in current year data table with date column named date
++get_first_date = function(dt) {
++  dt = copy(dt)
++  dt[, year := year(date)]
++  setorder(dt, "date")
++  first_date = dt[year == year(Sys.Date()), .(date)][1, date]
++  return(first_date)
++}
++
++# Calculate portfolio statistics
++get_portfolio_stats = function(returns, clean = TRUE) {
++  # Debug
++  # returns = as.data.table(na.omit(Return.calculate(r)))
++  # returns = rbi_lv[, .(date, strategy_ret, benchmark_ret)]
++
++  # Portfolio statistics
++  returns_xts = as.xts.data.table(returns)[, 1:2]
++
++  # First date
++  first_date = as.matrix(returns[, first(.SD), .SDcols = 1], rownames = NULL)
++  first_date = data.table(Strategy = first_date[[1]],
++                          Benchmark = first_date[[1]])
++  rownames(first_date) = "Start Date"
++
++  # Performance analytics
++  ret_cum = Return.cumulative(returns_xts)
++  ret_ann = Return.annualized(returns_xts)
++  sr      = SharpeRatio(returns_xts)
++  asr     = AdjustedSharpeRatio(returns_xts)
++
++  # Downside frequency
++  # PerformanceAnalytics::DownsideFrequency(returns_xts)
++
++  # DDs
++  dds = lapply(returns_xts, function(r) sortDrawdowns(findDrawdowns(r)))
++  dd_max_loss = t(as.matrix(sapply(dds, function(x) min(x$return))))
++  rownames(dd_max_loss) = "Max Drawdown"
++  dd_max_length = t(as.matrix(sapply(dds, function(x) max(x$length))))
++  rownames(dd_max_length) = "Max Drawdown Length"
++
++  # No rownames
++  if (any(grepl("ret", names(returns_xts)))) {
++    beta = BetaCoVariance(returns_xts[, "strategy_ret"],
++                          returns_xts[, "benchmark_ret"])
++    beta = matrix(c(beta, 1), ncol = 2, dimnames = list("Beta", c("strategy_ret", "benchmark_ret")))
++  } else {
++    beta = BetaCoVariance(returns_xts[, "Strategy"],
++                          returns_xts[, "Benchmark"])
++    beta = matrix(c(beta, 1), ncol = 2, dimnames = list("Beta", c("Strategy", "Benchmark")))
++  }
++
++  # Combine
++  portfolio_stats = rbind(ret_cum, ret_ann, sr, asr,
++                          dd_max_loss, dd_max_length,
++                          beta)
++  portfolio_stats = apply(portfolio_stats, 2, round, 4)
++  # PerformanceAnalytics::MartinRatio(returns_xts)
++
++  return(portfolio_stats)
++}
++
++# Calculate portfolio statistics from strategy object
++get_portfolio_stats_from_strategy = function(strategy, start_date = NULL, unit = NULL) {
++  nav_units_ = strategy$calculate_nav_units(
++    "SPY",
++    unit = unit,
++    start_date = start_date,
++    end_date = NULL
++  )
++  nav_units_ = nav_units_[, .(date, Strategy, Benchmark)]
++  r_ = na.omit(Return.calculate(as.xts.data.table(nav_units_)))
++  get_portfolio_stats(as.data.table(r_))
++}
++
++# Init strategy
++strategy = Strategy$new(lapply(FLEX_PRA, read_xml), start_date = pra_start)
++nav_units_ = strategy$calculate_nav_units("SPY", unit = NULL)
++r = as.xts.data.table(nav_units_[, .(date, Strategy, Benchmark)])
++na.omit(Return.calculate(r))
++portfolio_stats = get_portfolio_stats(as.data.table(na.omit(Return.calculate(r))))
++
++
++# DEBUG -------------------------------------------------------------------
++# Init strategy
++# strategy = Strategy$new(lapply(FLEX_EXUBER, read_xml), start_date = exuber_start)
++# nav_units_ = strategy$calculate_nav_units("SPY", unit = NULL)
++# r = as.xts.data.table(nav_units_[, .(date, Strategy, Benchmark)])
++# na.omit(Return.calculate(r))
++# portfolio_stats = get_portfolio_stats(as.data.table(na.omit(Return.calculate(r))))
++
++# strategy = strategy_pra$clone()
++# nav_units = strategy$calculate_nav_units("SPY", unit = NULL)
++# nav_units = unique(nav_units, by = "date")
++# # TODO duplicates
++# r = as.xts.data.table(nav_units[, .(date, Strategy)])
++# rpy = as.data.frame(as.data.table(r))
++# colnames(rpy) = c("date", "Close")s
++# py_run_string("
++# dt = r.rpy
++# dt['date'] = pd.to_datetime(dt['date'])
++# series = pd.Series(dt['Close'].values, index=dt['date'])
++# qs.reports.html(series, 'SPY', output='reports/report.html')
++# ")
++# REPORT
++# yaml_content = list(
++#   xml_paths = FLEX_PRA, # paste0(FLEX_PRA, collapse = ";"),
++#   start_date = as.character(pra_start),
++#   benchmark = "SPY"
++# )
++# yaml_content = yaml::as.yaml(yaml_content)
++# writeLines(yaml_content, "params.yml")
++# file_name_ = "report.html"
++# render_command = paste(
++#   'quarto render report.qmd --execute-params params.yml',
++#   '--output ', file_name_,
++#   '--output-dir ./reports'
++# )
++# system(render_command, wait = TRUE)
++
++# ARCHIVE -----------------------------------------------------------------
++# python environment
++# if (Sys.info()[['user']] == 'Mislav') {
++#   reticulate::use_virtualenv("C:/Users/Mislav/projects_py/pyquant", required = TRUE)
++# } else {
++#   reticulate::use_virtualenv("/opt/venv")
++#   pd = reticulate::import("pandas")
++#   qs = reticulate::import("quantstats")
++# }
++# # py_run_string('import pandas as pd; import quantstats as qs;')
++# print("OVER")
++#
++# output$download_report = downloadHandler(
++#   filename = function() {
++#     paste0("report-", id, "-", cash_report_currency()[, last(acctAlias)], ".html")
++#   },
++#   content = function(file) {
++#     req(returns())
++#     showModal(modalDialog("Loading", footer=NULL))
++#     on.exit(removeModal())
++#     rpy = as.data.frame(unique(as.data.table(returns())), by = date)
++#     colnames(rpy) = c("date", "Close")
++#     assign("rpy", rpy, envir = .GlobalEnv)  # Assign rpy to global environment
++#
++#     py_run_string("
++# import pandas as pd
++# import quantstats as qs
++# dt = r.rpy
++# dt['date'] = pd.to_datetime(dt['date'])
++# series = pd.Series(dt['Close'].values, index=dt['date'])
++# qs.reports.html(series, 'SPY', output='reports/report.html')")
++#
++#     # Copy the temporary report to the file argument provided by Shiny
++#     file.copy("reports/report.html", file, overwrite = TRUE)
++#   }
++# )
++# })
+diff --git a/module_strategy.R b/module_strategy.R
+new file mode 100644
+index 0000000..ad5a7d8
+--- /dev/null
++++ b/module_strategy.R
+@@ -0,0 +1,487 @@
++module_strategy_ui <- function(id, alpha = NULL) {
++  ns = NS(id)
++  tagList(
++    bslib::navset_tab(
++      bslib::nav_panel(title = "Summary",
++                       tagList(
++                         layout_column_wrap(
++                           width = "250px",
++                           fill = FALSE,
++                           value_box(
++                             title = "NAV",
++                             value = textOutput(ns("nav")),
++                             showcase = bs_icon("chevron-double-right")
++                           ),
++                           value_box(
++                             title = "Start date",
++                             value = textOutput(ns("start_date")),
++                             showcase = bs_icon("calendar")
++                           ),
++                           value_box(
++                             title = "Return",
++                             value = textOutput(ns("return")),
++                             showcase = bs_icon("graph-up")
++                           ),
++                           value_box(
++                             title = "Sharpe Ratio Annualized",
++                             value = textOutput(ns("sharpe")),
++                             showcase = bs_icon("arrows-collapse")
++                           ),
++                           value_box(
++                             title = "CAGR",
++                             value = textOutput(ns("cagr")),
++                             showcase = bs_icon("graph-up")
++                           )
++                         ),
++                         layout_columns(
++                           col_widths = c(12, 6),
++                           card(
++                             card_header("Strategy performance"),
++                             layout_sidebar(
++                               sidebar = sidebar(
++                                 dateRangeInput(ns("date_range"),
++                                                "Date range",
++                                                start = NULL,
++                                                end = NULL,
++                                                min = NULL,
++                                                max = NULL,
++                                                separator = "-",
++                                                format = "dd.mm.yy",
++                                 ),
++                                 # Add year to date option for dates, as button
++                                 fluidRow(
++                                   column(width = 6, actionButton(ns("ytd_button"), "YTD", width = "100%", class = "btn-small-text")),
++                                   column(width = 6, actionButton(ns("m1_button"), "1M", width = "100%", class = "btn-small-text"))
++                                 ),
++                                 fluidRow(
++                                   column(width = 6, actionButton(ns("m6_button"), "6M", width = "100%", class = "btn-small-text")),
++                                   column(width = 6, actionButton(ns("reset_button"), "ALL", width = "100%", class = "btn-small-text"))
++                                 ),
++                                 # numericInput(ns("scale_strategy"), "Scale strategy", value = 1, min = 1),
++                                 checkboxInput(ns("leverage"), "Leverage", value = TRUE)
++                               ),
++                               dygraphOutput(ns("dygraph_performance"))
++                             )
++                           ),
++                           card(
++                             card_header("Portfolio summary"),
++                             DT::DTOutput(ns("dt_portfolio_summary")))
++                         )
++                       )),
++      if (!is.null(alpha)) {
++        nav_panel(title = "Alpha", alpha(ns))
++      },
++      bslib::nav_panel(
++        title = "Portfolio",
++        card(
++          card_header("Portfolio"),
++          DT::DTOutput(ns("dt_open_positions"))
++        )
++      ),
++      bslib::nav_panel(title = "Costs",
++                       card(
++                         fullRow = TRUE,
++                         card_header("CFD costs"),
++                         layout_sidebar(
++                           sidebar = sidebar(
++                             selectInput(ns("select_cfd_costs"),
++                                         "CFD costs",
++                                         choices = c("Cumulative", "Daily"),
++                                         selected = "Cumulative"),
++                             checkboxInput(ns("show_zeros"),
++                                           "Show zeros",
++                                           value = FALSE)
++                           ),
++                           dygraphOutput(ns("dygraph_cfd_costs")),
++                         )
++                       ),
++      ),
++      bslib::nav_panel(title = "Raw",
++                       card(
++                         card_header("Raw data"),
++
++                         p("Click on below buttom to download raw Interactive Brokers Flex reports data"),
++                         downloadButton(ns("download_tades"), "Trades"),
++                         downloadButton(ns("download_cash_report_currency"), "Cash Report Curency"),
++                         downloadButton(ns("download_cfd_charge"), "CFD Charge"),
++                         downloadButton(ns("download_equity_summary_by_report_date_in_base"),
++                                        "Equity Summary By Report Date In Base"),
++                         downloadButton(ns("download_prior_period_position"), "Prior period position")
++                       )
++      ),
++      bslib::nav_spacer(),
++      # add downloadabe html report
++      bslib::nav_item(
++        tabName = "download",
++        downloadButton(ns("download_btn"), "Preuzmi dokument") # , class = "btn btn-success"
++        # downloadBttn(
++        #   outputId = ns("download_report"),
++        #   style = "bordered",
++        #   color = "primary"
++        # )
++      )
++    )
++  )
++}
++
++module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
++                                  alpha = NULL) {
++  # Debug
++  # xml_paths = FLEX_MINMAX
++  # start_date = minmax_start
++  # end_date = NULL
++  # strategy = Strategy$new(lapply(xml_paths, read_xml), start_date, end_date)
++  # strategy$start_date
++  # strategy$end_date
++  # cfd_charge = strategy$extract_node("CFDCharge")
++  # equity_summary_by_report_date_in_base = strategy$extract_node("EquitySummaryByReportDateInBase")
++  # equity_summary_by_report_date_in_base[, format(last(total), big.mark = ",", scientific = FALSE)]
++  # strategy$calculate_nav_units("SPY", unit = 2)
++  # nav_units = strategy$calculate_nav_units("SPY", unit = NULL)
++  # r = as.xts.data.table(nav_units[, .(date, Strategy, Benchmark)])
++  # returns = na.omit(Return.calculate(r))
++  # paste0(round(Return.annualized(returns)[1,1] * 100, 2), "%")
++  # portfolio_stats = get_portfolio_stats(as.data.table(returns))
++
++  # Create strategy
++  strategy = reactive({
++    # strategy = Strategy$new(lapply(xml_paths, read_xml), start_date, end_date)
++    Strategy$new(lapply(xml_paths, read_xml), start_date, end_date)
++  })
++
++  # Import data
++  # xml_paths_ = FLEX_PRA
++  cash_report_currency = reactive({
++    # strategy$extract_node("CashReportCurrency", FALSE)
++    strategy()$extract_node("CashReportCurrency", FALSE)
++  })
++  equity_summary_by_report_date_in_base = reactive({
++    # equity_summary_by_report_date_in_base = strategy$extract_node("EquitySummaryByReportDateInBase")
++    strategy()$extract_node("EquitySummaryByReportDateInBase")
++  })
++  trades = reactive({
++    # strategy$extract_node("Trade")
++    strategy()$extract_node("Trade")
++  })
++  cfd_charge = reactive({
++    # cfd_charge = strategy$extract_node("CFDCharge")
++    strategy()$extract_node("CFDCharge")
++  })
++  prior_period_position = reactive({
++    # strategy$extract_node("PriorPeriodPosition")
++    strategy()$extract_node("PriorPeriodPosition")
++  })
++  open_positions = reactive({
++    tryCatch({strategy()$extract_node("OpenPosition")}, error = NULL)
++  })
++
++  # Server
++  moduleServer(id, function(input, output, session) {
++    # SUMMARY -----------------------------------------------------------------
++    output$nav = renderText({
++      # equity_summary_by_report_date_in_base[, format(last(total), big.mark = ",", scientific = FALSE)]
++      equity_summary_by_report_date_in_base()[, format(last(total), big.mark = ",", scientific = FALSE)]
++    })
++    output$start_date = renderText({
++      # as.character(strategy$start_date)
++      as.character(strategy()$start_date)
++      format.Date(strategy()$start_date, "%d.%m.%Y")
++    })
++    output$return = renderText({
++      # paste0(round(Return.cumulative(req(returns))[1,1] * 100, 2), "%")
++      paste0(round(Return.cumulative(req(returns()))[1,1] * 100, 2), "%")
++    })
++    output$sharpe = renderText({
++      round(SharpeRatio.annualized(req(returns()))[1,1], 2)
++    })
++    output$cagr = renderText({
++      paste0(round(Return.annualized(req(returns()))[1,1] * 100, 2), "%")
++    })
++
++    nav_units = reactive({
++      if (isTRUE(input$leverage)) {
++        # nav_units_ = strategy$calculate_nav_units("SPY", unit = NULL)
++        nav_units_ = strategy()$calculate_nav_units("SPY", unit = NULL)
++      } else {
++        nav_units_ = strategy()$calculate_nav_units("SPY", unit = 2)
++      }
++      print(nav_units_)
++      nav_units_
++    })
++
++    observe({
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = nav_units()[, min(date)],
++        min = nav_units()[, min(date)],
++        end = nav_units()[, max(date)],
++        max = nav_units()[, max(date)]
++      )
++    })
++    observeEvent(input$ytd_button, {
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = get_first_date(nav_units()),
++        min = get_first_date(nav_units()),
++        end = Sys.Date(),
++        max = Sys.Date()
++      )
++    })
++    observeEvent(input$m1_button, {
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = max(Sys.Date() - 30, nav_units()[, min(date)]),
++        min = max(Sys.Date() - 30, nav_units()[, min(date)]),
++        end = Sys.Date(),
++        max = Sys.Date()
++      )
++    })
++    observeEvent(input$m6_button, {
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = max(Sys.Date() - 180, nav_units()[, min(date)]),
++        min = max(Sys.Date() - 180, nav_units()[, min(date)]),
++        end = Sys.Date(),
++        max = Sys.Date()
++      )
++    })
++    observeEvent(input$reset_button, {
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = nav_units()[, min(date)],
++        min = nav_units()[, min(date)],
++        end = nav_units()[, max(date)],
++        max = nav_units()[, max(date)]
++      )
++    })
++
++    nav_units_update = reactive({
++      req(!is.null(input$date_range[1]) | !is.null(input$date_range[1]))
++      if (input$date_range[1] == nav_units()[, min(date)] &
++          input$date_range[2] == nav_units()[, max(date)]) {
++        return(NULL)
++      }
++      # nav_units_update = strategy$calculate_nav_units(
++      #   "SPY",
++      #   unit = 2,
++      #   start_date = as.Date(strategy$start_date),
++      #   end_date = Sys.Date()
++      # )
++      print("UPDATE!!!!!!!!!!!!!!!!!!!!!!!")
++      strategy()$calculate_nav_units(
++        "SPY",
++        unit = if (input$leverage == TRUE) NULL else 2,
++        start_date = input$date_range[1],
++        end_date = input$date_range[2]
++      )
++    })
++
++    returns = reactive({
++      req(nav_units())
++      if (!is.null(nav_units_update())) {
++        # r = as.xts.data.table(nav_units_update[, .(date, Strategy, Benchmark)])
++        r = as.xts.data.table(nav_units_update()[, .(date, Strategy, Benchmark)])
++      } else {
++        r = as.xts.data.table(nav_units()[, .(date, Strategy, Benchmark)])
++      }
++      na.omit(Return.calculate(r))
++    })
++
++    portfolio_stats = reactive(get_portfolio_stats(as.data.table(returns())))
++
++    output$dygraph_performance = renderDygraph({
++      # dygraph(na.omit(nav_units[, .(date, Benchmark, Strategy, StrategyGross)])) |>
++      #   dyCSS("dygraph.css")
++      if (input$date_range[1] == nav_units()[, min(date)] &
++          input$date_range[2] == nav_units()[, max(date)]) {
++        dygraph(na.omit(nav_units()[, .(date, Benchmark, Strategy, StrategyGross)])) |>
++          dyCSS("www/dygraph.css")
++      } else {
++        dygraph(na.omit(nav_units_update()[, .(date, Benchmark, Strategy, StrategyGross)])) |>
++          dyCSS("www/dygraph.css")
++      }
++    })
++
++    output$dt_portfolio_summary = DT::renderDT({
++      dt_portfolio(portfolio_stats(), "portfolio_summary")
++    })
++
++    # ALPHA -------------------------------------------------------------------
++    if (!is.null(alpha)) {
++      alpha(input, output, session, strategy)
++    }
++
++
++    # PORTFOLIO ---------------------------------------------------------------
++    output$dt_open_positions = DT::renderDT({
++      if (!is.null(open_positions())) {
++        portfolio = open_positions()
++        portfolio[ , reportDate := as.Date(reportDate)]
++        # Report date should be in current year
++        portfolio = portfolio[reportDate > as.Date(paste0(year(Sys.Date()), "-01-01"))]
++      } else {
++        portfolio = data.table("No data" = "No data")
++      }
++      DT::datatable(portfolio)
++    })
++    # output$dt_open_positions = DT::renderDT({
++    #   if (!is.null(open_positions())) {
++    #     DT::datatable(open_positions())
++    #   } else {
++    #     DT::datatable(data.table(
++    #       "No data" = "No data"
++    #       )
++    #     )
++    #   }
++    # })
++
++
++    # COSTS -------------------------------------------------------------------
++    output$dygraph_cfd_costs = renderDygraph({
++      # cfd_charge = strategy$extract_node("CFDCharge")
++      req(input$select_cfd_costs)
++
++      # Default is without zeroes, otherwise with zeroes
++      if (input$show_zeros == TRUE) {
++        cfd_charge_ = cfd_charge()[, .(date, total)][
++          equity_summary_by_report_date_in_base()[, .(date = reportDate, nav = total)],
++          on = "date"]
++        setnafill(cfd_charge_, cols = "total", fill = 0)
++      } else {
++        cfd_charge_ = cfd_charge()
++      }
++
++      if (input$select_cfd_costs == "Cumulative") {
++        dygraph(cfd_charge_[, .(date, `CFD costs` = cumsum(-total))])
++      } else {
++        dygraph(cfd_charge_[, .(date, `CFD costs` = -total)])
++      }
++    })
++
++    # DOWNLOAD -----------------------------------------------------
++    output$download_tades = downloadHandler(
++      filename = function() {
++        "trades.csv"
++      },
++      content = function(file) {
++        write.csv(trades(), file)
++      }
++    )
++    output$download_cash_report_currency = downloadHandler(
++      filename = function() {
++        "cash_report_currency.csv"
++      },
++      content = function(file) {
++        write.csv(cash_report_currency(), file)
++      }
++    )
++    output$download_equity_summary_by_report_date_in_base = downloadHandler(
++      filename = function() {
++        "equity_summary_by_report_date_in_base.csv"
++      },
++      content = function(file) {
++        write.csv(equity_summary_by_report_date_in_base(), file)
++      }
++    )
++    output$download_cfd_charge = downloadHandler(
++      filename = function() {
++        "cfd_charge.csv"
++      },
++      content = function(file) {
++        write.csv(cfd_charge(), file)
++      }
++    )
++    output$download_prior_period_position = downloadHandler(
++      filename = function() {
++        "prior_period_position.csv"
++      },
++      content = function(file) {
++        write.csv(prior_period_position(), file)
++      }
++    )
++
++    output$download_btn = downloadHandler(
++      filename = function() {
++        paste0("report-", cash_report_currency()[, last(acctAlias)], ".html")
++        # "report.html"
++      },
++      content = function(file) {
++        # xml_paths_ = FLEX_PRA
++        # start_date = pra_start
++        # yaml_content = list(
++        #   xml_paths = paste0(xml_paths_, collapse = ";"),
++        #   start_date = as.character(start_date),
++        #   benchmark = "SPY"
++        # )
++        # yaml_content = yaml::as.yaml(yaml_content)
++        # writeLines(yaml_content, "params.yml")
++        # temp_file = tempfile(fileext = ".html")
++        #
++        # quarto::quarto_render("report.qmd",
++        #                       execute_params = list(xml_paths = paste0(xml_paths_, collapse = ";"),
++        #                                             start_date = as.character(start_date),
++        #                                             benchmark = "SPY"),
++        #                       output_file = temp_file)
++        #
++        #
++        # render_command = paste(
++        #   'quarto render report.qmd --execute-params params.yml',
++        #   '--output ', temp_file
++        # )
++        # system(render_command, wait = TRUE)
++
++        # temp_file = tempfile(fileext = ".html")
++
++        # # Show notification that report is generating
++        # id <- showNotification(
++        #   "Rendering report...",
++        #   duration = NULL,
++        #   closeButton = FALSE
++        # )
++        # on.exit(removeNotification(id), add = TRUE)**
++
++        # show modal
++        showModal(modalDialog(
++          title = "Rendering report",
++          "Please wait while the report is being generated...",
++          footer = NULL
++        ))
++
++        rmarkdown::render(
++          input="report.Rmd",
++          params = list(xml_paths = paste0(xml_paths, collapse = ";"),
++                        start_date = as.character(start_date),
++                        benchmark = "SPY"),
++          output_file = file,
++          envir = new.env(parent = globalenv())
++        )
++
++        # render_command <- paste('quarto render forensis_quarto.qmd --execute-params', param_file,
++        #                         '--output ', file_name_,
++        #                         '--output-dir reports')
++        # system(render_command, wait = TRUE)
++
++        removeModal()
++
++        # file.copy(temp_file, file)
++      }
++    )
++
++    reactive({
++      open_positions = !is.null(open_positions()) &&
++        nrow(open_positions()[ , reportDate := as.Date(reportDate)][
++          reportDate > as.Date(paste0(year(Sys.Date()), "-01-01"))]) > 0
++      if (open_positions == TRUE) {
++        open_positions = open_positions()[1, symbol]
++      }
++      list(strategy = strategy(), date = strategy()$start_date,
++           portfolio_has_asset = open_positions)
++    })
++
++  })
++}
+diff --git a/module_strategy_rbi.R b/module_strategy_rbi.R
+new file mode 100644
+index 0000000..4f62d67
+--- /dev/null
++++ b/module_strategy_rbi.R
+@@ -0,0 +1,334 @@
++module_strategy_ui_rbi = function(id, alpha = NULL) {
++  ns = NS(id)
++  tagList(
++    bslib::navset_tab(
++      bslib::nav_panel(title = "Summary",
++                       tagList(
++                         layout_column_wrap(
++                           width = "250px",
++                           fill = FALSE,
++                           value_box(
++                             title = "NAV",
++                             value = textOutput(ns("nav")),
++                             showcase = bs_icon("chevron-double-right")
++                           ),
++                           value_box(
++                             title = "Start date",
++                             value = textOutput(ns("start_date")),
++                             showcase = bs_icon("calendar")
++                           ),
++                           value_box(
++                             title = "Return",
++                             value = textOutput(ns("return")),
++                             showcase = bs_icon("graph-up")
++                           ),
++                           value_box(
++                             title = "Sharpe Ratio",
++                             value = textOutput(ns("sharpe")),
++                             showcase = bs_icon("arrows-collapse")
++                           ),
++                           value_box(
++                             title = "CAGR",
++                             value = textOutput(ns("cagr")),
++                             showcase = bs_icon("graph-up")
++                           )
++                         ),
++                         layout_columns(
++                           col_widths = c(12, 6),
++                           card(
++                             card_header("Strategy performance"),
++                             layout_sidebar(
++                               sidebar = sidebar(
++                                 dateRangeInput(ns("date_range"),
++                                                "Date range",
++                                                start = NULL,
++                                                end = NULL,
++                                                min = NULL,
++                                                max = NULL,
++                                                separator = "-",
++                                                format = "dd.mm.yy",
++                                 ),
++                                 # Add year to date option for dates, as button
++                                 fluidRow(
++                                   column(width = 6, actionButton(ns("ytd_button"), "YTD", width = "100%", class = "btn-small-text")),
++                                   column(width = 6, actionButton(ns("m1_button"), "1M", width = "100%", class = "btn-small-text"))
++                                 ),
++                                 fluidRow(
++                                   column(width = 6, actionButton(ns("m6_button"), "6M", width = "100%", class = "btn-small-text")),
++                                   column(width = 6, actionButton(ns("reset_button"), "ALL", width = "100%", class = "btn-small-text"))
++                                 ),
++                                 # numericInput(ns("scale_strategy"), "Scale strategy", value = 1, min = 1),
++                                 # checkboxInput(ns("leverage"), "Leverage", value = TRUE)
++                               ),
++                               dygraphOutput(ns("dygraph_performance"))
++                             )
++                           ),
++                           card(
++                             card_header("Portfolio summary"),
++                             DT::DTOutput(ns("dt_portfolio_summary")))
++                         )
++                       )),
++      # if (!is.null(alpha)) {
++      #   nav_panel(title = "Alpha", alpha(ns))
++      # },
++      bslib::nav_panel(
++        title = "Portfolio",
++        card(
++          card_header("Portfolio"),
++          DT::DTOutput(ns("dt_open_positions"))
++        )
++      ),
++      # bslib::nav_panel(title = "Costs",
++      #                  card(
++      #                    fullRow = TRUE,
++      #                    card_header("CFD costs"),
++      #                    layout_sidebar(
++      #                      sidebar = sidebar(
++      #                        selectInput(ns("select_cfd_costs"),
++      #                                    "CFD costs",
++      #                                    choices = c("Cumulative", "Daily"),
++      #                                    selected = "Cumulative"),
++      #                        checkboxInput(ns("show_zeros"),
++      #                                      "Show zeros",
++      #                                      value = FALSE)
++      #                      ),
++      #                      dygraphOutput(ns("dygraph_cfd_costs")),
++      #                    )
++      #                  ),
++      # ),
++      bslib::nav_panel(title = "Raw",
++                       card(
++                         card_header("Raw data"),
++
++                         p("Click on below buttom to download raw Interactive Brokers Flex reports data"),
++                         downloadButton(ns("download_nav_units"), "NAV units"),
++                         downloadButton(ns("download_positions"), "Positions"),
++                       )
++      ),
++      # bslib::nav_spacer(),
++      # # add downloadabe html report
++      # bslib::nav_item(
++      #   tabName = "download",
++      #   downloadButton(ns("download_btn"), "Preuzmi dokument") # , class = "btn btn-success"
++      #   # downloadBttn(
++      #   #   outputId = ns("download_report"),
++      #   #   style = "bordered",
++      #   #   color = "primary"
++      #   # )
++      # )
++    )
++  )
++}
++
++module_strategy_server_rbi = function(id,
++                                      nav_units,
++                                      positions = NULL,
++                                      start_date,
++                                      end_date = NULL,
++                                      alpha = NULL) {
++  # Debug
++  # nav_units = copy(rbi_lv)
++
++  # Server
++  moduleServer(id, function(input, output, session) {
++
++    # SUMMARY -----------------------------------------------------------------
++    output$nav = renderText({
++      nav_units[, data.table::last(strategy)]
++    })
++    output$start_date = renderText({
++      format.Date(start_date, "%d.%m.%Y")
++    })
++    output$return = renderText({
++      paste0(round(Return.cumulative(nav_units[, strategy_ret]) * 100, 2), "%")
++    })
++    output$sharpe = renderText({
++      round(SharpeRatio.annualized(req(nav_units[, .(date, strategy_ret)]))[1,1], 2)
++    })
++    output$cagr = renderText({
++      paste0(round(Return.annualized(nav_units[, .(date, strategy_ret)])[1,1] * 100, 2), "%")
++    })
++
++    observe({
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = nav_units[, min(date)],
++        min = nav_units[, min(date)],
++        end = nav_units[, max(date)],
++        max = nav_units[, max(date)]
++      )
++    })
++    observeEvent(input$ytd_button, {
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = get_first_date(nav_units),
++        min = get_first_date(nav_units),
++        end = Sys.Date(),
++        max = Sys.Date()
++      )
++    })
++    observeEvent(input$m1_button, {
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = max(Sys.Date() - 30, nav_units[, min(date)]),
++        min = max(Sys.Date() - 30, nav_units[, min(date)]),
++        end = Sys.Date(),
++        max = Sys.Date()
++      )
++    })
++    observeEvent(input$m6_button, {
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = max(Sys.Date() - 180, nav_units[, min(date)]),
++        min = max(Sys.Date() - 180, nav_units[, min(date)]),
++        end = Sys.Date(),
++        max = Sys.Date()
++      )
++    })
++    observeEvent(input$reset_button, {
++      updateDateRangeInput(
++        session,
++        "date_range",
++        start = nav_units[, min(date)],
++        min = nav_units[, min(date)],
++        end = nav_units[, max(date)],
++        max = nav_units[, max(date)]
++      )
++    })
++
++    nav_units_update = reactive({
++      req(!is.null(input$date_range[1]) | !is.null(input$date_range[1]))
++      # if (input$date_range[1] == nav_units[, min(date)] &
++      #     input$date_range[2] == nav_units[, max(date)]) {
++      #   return(NULL)
++      # }
++      nav_units[date >= input$date_range[1] & date <= input$date_range[2] + days(1)]
++    })
++
++    # returns = reactive({
++    #   req(nav_units())
++    #   if (!is.null(nav_units_update())) {
++    #     r = as.xts.data.table(nav_units_update()[, .(date, Strategy, Benchmark)])
++    #   } else {
++    #     r = as.xts.data.table(nav_units()[, .(date, Strategy, Benchmark)])
++    #   }
++    #   na.omit(Return.calculate(r))
++    # })
++
++    portfolio_stats = reactive({
++      if (input$date_range[1] == nav_units[, min(date)] &
++          input$date_range[2] == nav_units[, max(date)]) {
++        dt_ = nav_units[, .(date, strategy_ret, benchmark_ret)]
++      } else {
++        dt_ = nav_units_update()[, .(date, strategy_ret, benchmark_ret)]
++      }
++      get_portfolio_stats(dt_)
++    })
++
++    output$dygraph_performance = renderDygraph({
++      # dygraph(na.omit(nav_units[, .(date, Benchmark, Strategy, StrategyGross)])) |>
++      #   dyCSS("dygraph.css")
++      if (input$date_range[1] == nav_units[, min(date)] &
++          input$date_range[2] == nav_units[, max(date)]) {
++        dygraph(na.omit(nav_units[, .(date, benchmark, strategy)])) |>
++          dyCSS("www/dygraph.css")
++      } else {
++        dygraph(na.omit(nav_units_update()[, .(date, benchmark, strategy)])) |>
++          dyCSS("www/dygraph.css")
++      }
++    })
++
++    output$dt_portfolio_summary = DT::renderDT({
++      dt_portfolio(portfolio_stats(), "portfolio_summary")
++    })
++    #
++    #   # ALPHA -------------------------------------------------------------------
++    #   if (!is.null(alpha)) {
++    #     alpha(input, output, session, strategy)
++    #   }
++    #
++    #
++    # PORTFOLIO ---------------------------------------------------------------
++    output$dt_open_positions = DT::renderDT({
++      if (!is.null(positions)) {
++        portfolio = rbi_lv_portfolio
++      } else {
++        portfolio = data.table("No data" = "No data")
++      }
++      DT::datatable(portfolio)
++    })
++
++    #
++    #   # COSTS -------------------------------------------------------------------
++    #   output$dygraph_cfd_costs = renderDygraph({
++    #     # cfd_charge = strategy$extract_node("CFDCharge")
++    #     req(input$select_cfd_costs)
++    #
++    #     # Default is without zeroes, otherwise with zeroes
++    #     if (input$show_zeros == TRUE) {
++    #       cfd_charge_ = cfd_charge()[, .(date, total)][
++    #         equity_summary_by_report_date_in_base()[, .(date = reportDate, nav = total)],
++    #         on = "date"]
++    #       setnafill(cfd_charge_, cols = "total", fill = 0)
++    #     } else {
++    #       cfd_charge_ = cfd_charge()
++    #     }
++    #
++    #     if (input$select_cfd_costs == "Cumulative") {
++    #       dygraph(cfd_charge_[, .(date, `CFD costs` = cumsum(-total))])
++    #     } else {
++    #       dygraph(cfd_charge_[, .(date, `CFD costs` = -total)])
++    #     }
++    #   })
++    #
++    # DOWNLOAD -----------------------------------------------------
++    output$download_nav_units = downloadHandler(
++      filename = function() {
++        "nav_units.csv"
++      },
++      content = function(file) {
++        write.csv(nav_units, file)
++      }
++    )
++    output$download_positions = downloadHandler(
++      filename = function() {
++        "positions.csv"
++      },
++      content = function(file) {
++        write.csv(positions, file)
++      }
++    )
++    #
++    #   output$download_btn = downloadHandler(
++    #     filename = function() {
++    #       paste0("report-", cash_report_currency()[, last(acctAlias)], ".html")
++    #       # "report.html"
++    #     },
++    #     content = function(file) {
++    #       # show modal
++    #       showModal(modalDialog(
++    #         title = "Rendering report",
++    #         "Please wait while the report is being generated...",
++    #         footer = NULL
++    #       ))
++    #
++    #       rmarkdown::render(
++    #         input="report.Rmd",
++    #         params = list(xml_paths = paste0(xml_paths, collapse = ";"),
++    #                       start_date = as.character(start_date),
++    #                       benchmark = "SPY"),
++    #         output_file = file,
++    #         envir = new.env(parent = globalenv())
++    #       )
++    #
++    #       removeModal()
++    #     }
++    #   )
++    #
++    reactive(list(date = start_date))
++  })
++}
+diff --git a/rsconnect/shinyapps.io/forensis/CGSdelta.dcf b/rsconnect/shinyapps.io/forensis/CGSdelta.dcf
+new file mode 100644
+index 0000000..6144fe7
+--- /dev/null
++++ b/rsconnect/shinyapps.io/forensis/CGSdelta.dcf
+@@ -0,0 +1,12 @@
++name: CGSdelta
++title: CGSdelta
++username: forensis
++account: forensis
++server: shinyapps.io
++hostUrl: https://api.shinyapps.io/v1
++appId: 12248018
++bundleId: 10323502
++url: https://forensis.shinyapps.io/CGSdelta/
++version: 1
++asMultiple: FALSE
++asStatic: FALSE
+diff --git a/www/dygraph.css b/www/dygraph.css
+new file mode 100644
+index 0000000..c6a4e0e
+--- /dev/null
++++ b/www/dygraph.css
+@@ -0,0 +1,5 @@
++.dygraph-legend {
++  left: 70px !important;
++  background-color: transparent !important;
++}
++
+diff --git a/www/styles.css b/www/styles.css
+new file mode 100644
+index 0000000..b16dc81
+--- /dev/null
++++ b/www/styles.css
+@@ -0,0 +1,7 @@
++.btn-small-text {
++  font-size: 10px; /* Adjust the font size as needed */
++}
++
++.daterange-small-text {
++  font-size: 5px;
++}
