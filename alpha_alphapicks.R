@@ -1,7 +1,7 @@
 # source("imports.R")
 
 # Trades summary
-strategy_alphapicks = Strategy$new(lapply(FLEX_ALPHAPICKS, read_xml), alphapicks_start)
+strategy_alphapicks = Strategy$new(lapply(FLEX_ALPHAPICKS, read_xml, options = "HUGE"), alphapicks_start)
 trades_dt_alphapicks_summary = strategy_alphapicks$summary_cfd_trades()
 
 # UI
