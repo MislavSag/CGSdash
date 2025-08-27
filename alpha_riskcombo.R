@@ -1,7 +1,7 @@
 # source("imports.R")
 
 # Trades summary
-strategy_riskcombo = Strategy$new(lapply(FLEX_RISKCOMBO, read_xml), riskcombo_start)
+strategy_riskcombo = Strategy$new(lapply(FLEX_RISKCOMBO, read_xml, options = "HUGE"), riskcombo_start)
 trades_dt_riskcombo_summary = strategy_riskcombo$summary_cfd_trades()
 
 # UI

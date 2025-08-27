@@ -196,6 +196,13 @@ indicators_alphapicks = as.data.table(indicators_alphapicks)
 indicators_alphapicks = dcast(indicators_alphapicks, timestamp ~ variable, value.var = "value")
 setnames(indicators_alphapicks, "timestamp", "time")
 
+# VIX COMBO INDICATORS ---------------------------------------------------
+# vix combo indicators
+#indicators_vix_combo = dbReadTable(connec, "indicators_vixcombo")
+#indicators_vix_combo = as.data.table(indicators_vix_combo)
+#indicators_vix_combo = dcast(indicators_vix_combo, timestamp ~ variable, value.var = "value")
+#setnames(indicators_vix_combo, "timestamp", "time")
+
 
 # CLOSE CONNECTION --------------------------------------------------------
 # close connection
@@ -204,9 +211,9 @@ dbDisconnect(connec)
 
 # RBI STRATEGIES ----------------------------------------------------------
 # Least Volatile
-rbi_lv = fread("https://snpmarketdata.blob.core.windows.net/rbi/least_volatile_prinosi.csv",
-               col.names = c("date", "strategy_ret", "benchmark_ret", "strategy", "benchmark"))
-rbi_lv_portfolio = fread("https://snpmarketdata.blob.core.windows.net/rbi/least_volatile_pozicije.csv")
+#rbi_lv = fread("https://snpmarketdata.blob.core.windows.net/rbi/least_volatile_prinosi.csv",
+#               col.names = c("date", "strategy_ret", "benchmark_ret", "strategy", "benchmark"))
+#rbi_lv_portfolio = fread("https://snpmarketdata.blob.core.windows.net/rbi/least_volatile_pozicije.csv")
 
 
 # INPUTS -----------------------------------------------------------------
@@ -236,6 +243,9 @@ FLEX_RISKCOMBO = c(
 FLEX_ALPHAPICKS = c(
   "https://snpmarketdata.blob.core.windows.net/flex/alphapicks.xml"
 )
+#FLEX_VIXCOMBO = c(
+#  "https://snpmarketdata.blob.core.windows.net/flex/vixcombo.xml"
+#)
 
 # strategies start
 # Old - my way - first indicator apparance
@@ -252,7 +262,8 @@ exuber_old_start = indicators_exuber[, min(as.Date(time))]
 exuber_start_total = as.Date("2023-02-14")
 riskcombo_start = as.Date("2025-05-18")
 alphapicks_start = as.Date("2025-04-16")
-least_volatile_start = rbi_lv[, min(as.Date(date))]
+#vixcombo_start = as.Date("2025-06-27")
+#least_volatile_start = rbi_lv[, min(as.Date(date))]
 
 
 # UTILS -------------------------------------------------------------------
@@ -305,12 +316,13 @@ dt_portfolio = function(df, filename = "df", dates = NULL) {
         ),
         tr(
           th('Portfolio Statistics'),
-          th('Strategy PRA'),    th('Benchmark'),
-          th('Strategy MinMAx'), th('Benchmark'),
           th('Strategy Risk Combo'), th('Benchmark'),
           th('Strategy Alpha Picks'), th('Benchmark'),
-          th('Strategy Exuber'), th('Benchmark'),
-          th('Strategy LV'), th('Benchmark')
+          #th('Strategy VIX Combo'), th('Benchmark'),
+          th('Strategy PRA'),    th('Benchmark'),
+          th('Strategy MinMAx'), th('Benchmark'),
+          th('Strategy Exuber'), th('Benchmark')#,
+          #th('Strategy LV'), th('Benchmark')
           # ADD HERE
         )
       )
@@ -474,7 +486,7 @@ get_portfolio_stats_from_strategy = function(strategy, start_date = NULL, unit =
 }
 
 # Init strategy
-strategy = Strategy$new(lapply(FLEX_PRA, read_xml), start_date = pra_start)
+strategy = Strategy$new(lapply(FLEX_PRA, read_xml, options = "HUGE"), start_date = pra_start)
 nav_units_ = strategy$calculate_nav_units("SPY", unit = NULL)
 r = as.xts.data.table(nav_units_[, .(date, Strategy, Benchmark)])
 na.omit(Return.calculate(r))

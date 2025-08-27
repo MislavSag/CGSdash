@@ -1,7 +1,7 @@
 # source("imports.R")
 
 # Trades summary
-strategy_pra = Strategy$new(lapply(FLEX_PRA, read_xml), pra_start)
+strategy_pra = Strategy$new(lapply(FLEX_PRA, read_xml, options = "HUGE"), pra_start)
 trades_dt_pra_summary = strategy_pra$summary_cfd_trades()
 
 # UI

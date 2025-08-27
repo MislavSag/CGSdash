@@ -141,7 +141,7 @@ module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
                                   alpha = NULL, description = NULL) {
   # Debug
   # xml_paths = FLEX_RISKCOMBO
-  # start_date = riskcombo_start
+  # start_date = minmax_start
   # end_date = NULL
   # strategy = Strategy$new(lapply(xml_paths, read_xml), start_date, end_date)
   # strategy$start_date
@@ -155,12 +155,11 @@ module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
   # returns = na.omit(Return.calculate(r))
   # paste0(round(Return.annualized(returns)[1,1] * 100, 2), "%")
   # portfolio_stats = get_portfolio_stats(as.data.table(returns))
-  # tryCatch({strategy()$extract_node("OpenPosition")}, error = function(e) NULL)
 
   # Create strategy
   strategy = reactive({
     # strategy = Strategy$new(lapply(xml_paths, read_xml), start_date, end_date)
-    Strategy$new(lapply(xml_paths, read_xml), start_date, end_date)
+    Strategy$new(lapply(xml_paths, read_xml, options = "HUGE"), start_date, end_date)
   })
 
   # Import data
@@ -487,8 +486,6 @@ module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
     )
 
     reactive({
-      print(id)
-      print(open_positions())
       open_positions = !is.null(open_positions()) &&
         nrow(open_positions()[ , reportDate := as.Date(reportDate)][
           reportDate > as.Date(paste0(year(Sys.Date()), "-01-01"))]) > 0

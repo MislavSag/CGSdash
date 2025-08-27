@@ -1,7 +1,7 @@
 # source("imports.R")
 
 # Trades summary
-strategy_exuber_old = Strategy$new(lapply(FLEX_EXUBER, read_xml), exuber_old_start, exuber_start)
+strategy_exuber_old = Strategy$new(lapply(FLEX_EXUBER, read_xml, options = "HUGE"), exuber_old_start, exuber_start)
 trades_dt_exuber_OLD_summary = strategy_exuber_old$summary_cfd_trades()
 
 # UI

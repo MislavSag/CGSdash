@@ -1,7 +1,7 @@
 # source("imports.R")
 
 # Trades summary
-strategy_minmax = Strategy$new(lapply(FLEX_MINMAX, read_xml), minmax_start)
+strategy_minmax = Strategy$new(lapply(FLEX_MINMAX, read_xml, options = "HUGE"), minmax_start)
 trades_dt_minmax_summary = strategy_minmax$summary_cfd_trades()
 
 # UI
