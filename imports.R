@@ -198,10 +198,10 @@ setnames(indicators_alphapicks, "timestamp", "time")
 
 # VIX COMBO INDICATORS ---------------------------------------------------
 # vix combo indicators
-#indicators_vix_combo = dbReadTable(connec, "indicators_vixcombo")
-#indicators_vix_combo = as.data.table(indicators_vix_combo)
-#indicators_vix_combo = dcast(indicators_vix_combo, timestamp ~ variable, value.var = "value")
-#setnames(indicators_vix_combo, "timestamp", "time")
+indicators_vix_combo = dbReadTable(connec, "indicators_vixcombo")
+indicators_vix_combo = as.data.table(indicators_vix_combo)
+indicators_vix_combo = dcast(indicators_vix_combo, timestamp ~ variable, value.var = "value")
+setnames(indicators_vix_combo, "timestamp", "time")
 
 
 # CLOSE CONNECTION --------------------------------------------------------
@@ -243,9 +243,9 @@ FLEX_RISKCOMBO = c(
 FLEX_ALPHAPICKS = c(
   "https://snpmarketdata.blob.core.windows.net/flex/alphapicks.xml"
 )
-#FLEX_VIXCOMBO = c(
-#  "https://snpmarketdata.blob.core.windows.net/flex/vixcombo.xml"
-#)
+FLEX_VIXCOMBO = c(
+  "https://snpmarketdata.blob.core.windows.net/flex/vixcombo.xml"
+)
 
 # strategies start
 # Old - my way - first indicator apparance
@@ -262,7 +262,7 @@ exuber_old_start = indicators_exuber[, min(as.Date(time))]
 exuber_start_total = as.Date("2023-02-14")
 riskcombo_start = as.Date("2025-05-18")
 alphapicks_start = as.Date("2025-04-16")
-#vixcombo_start = as.Date("2025-06-27")
+vixcombo_start = as.Date("2025-08-27")
 #least_volatile_start = rbi_lv[, min(as.Date(date))]
 
 
@@ -318,9 +318,9 @@ dt_portfolio = function(df, filename = "df", dates = NULL) {
           th('Portfolio Statistics'),
           th('Strategy Risk Combo'), th('Benchmark'),
           th('Strategy Alpha Picks'), th('Benchmark'),
-          #th('Strategy VIX Combo'), th('Benchmark'),
+          th('Strategy VIX Combo'), th('Benchmark'),
           th('Strategy PRA'),    th('Benchmark'),
-          th('Strategy MinMAx'), th('Benchmark'),
+          th('Strategy MinMax'), th('Benchmark'),
           th('Strategy Exuber'), th('Benchmark')#,
           #th('Strategy LV'), th('Benchmark')
           # ADD HERE

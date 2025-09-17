@@ -58,7 +58,7 @@ module_strategy_ui <- function(id, alpha = NULL, description = NULL) {
                                    column(width = 6, actionButton(ns("reset_button"), "ALL", width = "100%", class = "btn-small-text"))
                                  ),
                                  # numericInput(ns("scale_strategy"), "Scale strategy", value = 1, min = 1),
-                                 checkboxInput(ns("leverage"), "Leverage", value = TRUE)
+                                 checkboxInput(ns("leverage"), "Leverage", value = FALSE)
                                ),
                                dygraphOutput(ns("dygraph_performance"))
                              )
@@ -137,7 +137,7 @@ module_strategy_ui <- function(id, alpha = NULL, description = NULL) {
   )
 }
 
-module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
+module_strategy_server = function(id, xml_paths, start_date, strategy_leverage = NULL, end_date = NULL,
                                   alpha = NULL, description = NULL) {
   # Debug
   # xml_paths = FLEX_RISKCOMBO
@@ -216,7 +216,7 @@ module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
         # nav_units_ = strategy$calculate_nav_units("SPY", unit = NULL)
         nav_units_ = strategy()$calculate_nav_units("SPY", unit = NULL)
       } else {
-        nav_units_ = strategy()$calculate_nav_units("SPY", unit = 2.66)
+        nav_units_ = strategy()$calculate_nav_units("SPY", unit = strategy_leverage)
       }
       print(nav_units_)
       nav_units_
@@ -288,7 +288,7 @@ module_strategy_server = function(id, xml_paths, start_date, end_date = NULL,
       print("UPDATE!!!!!!!!!!!!!!!!!!!!!!!")
       strategy()$calculate_nav_units(
         "SPY",
-        unit = if (input$leverage == TRUE) NULL else 2.66,
+        unit = if (input$leverage == TRUE) NULL else strategy_leverage,
         start_date = input$date_range[1],
         end_date = input$date_range[2]
       )
